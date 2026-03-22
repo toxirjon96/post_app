@@ -1,10 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
-import '../../../../common/constant/api_config.dart';
 import '../../../../common/repository/request_repository.dart';
-import '../../../../common/service/request_service.dart';
 import '../model/post_response.dart';
 import '../service/post_service.dart';
 
@@ -28,23 +25,16 @@ class PostNotifier extends StateNotifier<AsyncValue<List<PostResponse>>> {
 
 final postsProvider =
     StateNotifierProvider<PostNotifier, AsyncValue<List<PostResponse>>>((ref) {
-      final service = ref.watch(postServiceProvider);
-      return PostNotifier(service);
-    });
+  final service = ref.watch(postServiceProvider);
+  return PostNotifier(service);
+});
 
 final postServiceProvider = Provider<PostService>((ref) {
   final requestRepository = ref.watch(requestRepositoryProvider);
   return PostService(requestRepository: requestRepository);
 });
 
-final requestRepositoryProvider = Provider<RequestRepository>((ref) {
-  final dio = Dio(
-    BaseOptions(
-      baseUrl: ApiConfig.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 5),
-      receiveTimeout: const Duration(seconds: 10),
-      headers: {'Accept': 'application/json', 'User-Agent': 'FlutterApp'},
-    ),
-  );
-  return RequestServiceImpl(dio);
-});
+/// Overridden in [App] with the singleton [RequestRepository] from [DependencyScope].
+final requestRepositoryProvider = Provider<RequestRepository>(
+  (ref) => throw UnimplementedError('requestRepositoryProvider must be overridden'),
+);

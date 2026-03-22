@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
+import '../exception/request_exception.dart';
 import '../exception/status_code_exception.dart';
 import '../exception/unknown_exception.dart';
 import '../repository/request_repository.dart';
@@ -7,11 +10,63 @@ import '../util/logger.dart';
 
 class RequestServiceImpl implements RequestRepository {
   const RequestServiceImpl(Dio dio) : _dio = dio;
+
   final Dio _dio;
 
+  T _decode<T>(Response<String> response, T Function(dynamic json) decoder) {
+    final statusCode = response.statusCode ?? 0;
+    if (statusCode < 200 || statusCode >= 300) {
+      throw StatusCodeException('Request returned invalid status code', statusCode);
+    }
+    final body = response.data;
+    if (body == null || body.isEmpty) {
+      return decoder(null);
+    }
+    return decoder(jsonDecode(body));
+  }
+
+  Never _handleError(Object e) {
+    if (e is StatusCodeException || e is RequestException) throw e;
+    if (e is DioException) {
+      warning(e.toString());
+      throw RequestException(
+        e.message ?? 'Network request failed',
+        e.response?.statusCode,
+      );
+    }
+    warning(e.toString());
+    throw const UnknownException('An unexpected error occurred', 500);
+  }
+
   @override
-  Future<Object?> post(
-    String path, {
+  Future<T> get<T>(
+    String path,
+    T Function(dynamic json) decoder, {
+    Object? data,
+    Map<String, Object?>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    try {
+      final response = await _dio.get<String>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+        onReceiveProgress: onReceiveProgress,
+      );
+      return _decode(response, decoder);
+    } catch (e) {
+      _handleError(e);
+    }
+  }
+
+  @override
+  Future<T> post<T>(
+    String path,
+    T Function(dynamic json) decoder, {
     Object? data,
     Map<String, Object?>? queryParameters,
     Options? options,
@@ -20,7 +75,7 @@ class RequestServiceImpl implements RequestRepository {
     ProgressCallback? onReceiveProgress,
   }) async {
     try {
-      Response<String> response = await _dio.post(
+      final response = await _dio.post<String>(
         path,
         data: data,
         queryParameters: queryParameters,
@@ -29,58 +84,16 @@ class RequestServiceImpl implements RequestRepository {
         onSendProgress: onSendProgress,
         onReceiveProgress: onReceiveProgress,
       );
-      if (response.statusCode != null &&
-          response.statusCode! >= 200 &&
-          response.statusCode! <= 300) {
-        return response.data!;
-      } else {
-        throw const StatusCodeException(
-          'Request returns invalid status code',
-          403,
-        );
-      }
+      return _decode(response, decoder);
     } catch (e) {
-      warning(e.toString());
-      throw const UnknownException('Internal server error.', 500);
+      _handleError(e);
     }
   }
 
   @override
-  Future<Object?> get(
-    String path, {
-    Object? data,
-    Map<String, Object?>? queryParameters,
-    Options? options,
-    CancelToken? cancelToken,
-    ProgressCallback? onReceiveProgress,
-  }) async {
-    try {
-      Response<String> response = await _dio.get(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-        cancelToken: cancelToken,
-      );
-      if (response.statusCode != null &&
-          response.statusCode! >= 200 &&
-          response.statusCode! <= 300) {
-        return response.data!;
-      } else {
-        throw StatusCodeException(
-          'Request returns invalid status code',
-          (response.statusCode ?? 403),
-        );
-      }
-    } catch (e) {
-      warning(e.toString());
-      throw const UnknownException('Internal server error', 500);
-    }
-  }
-
-  @override
-  Future<Object?> put(
-    String path, {
+  Future<T> put<T>(
+    String path,
+    T Function(dynamic json) decoder, {
     Object? data,
     Map<String, Object?>? queryParameters,
     Options? options,
@@ -89,7 +102,7 @@ class RequestServiceImpl implements RequestRepository {
     ProgressCallback? onReceiveProgress,
   }) async {
     try {
-      Response<String> response = await _dio.put(
+      final response = await _dio.put<String>(
         path,
         data: data,
         queryParameters: queryParameters,
@@ -98,25 +111,16 @@ class RequestServiceImpl implements RequestRepository {
         onSendProgress: onSendProgress,
         onReceiveProgress: onReceiveProgress,
       );
-      if (response.statusCode != null &&
-          response.statusCode! >= 200 &&
-          response.statusCode! <= 300) {
-        return response.data!;
-      } else {
-        throw const StatusCodeException(
-          'Request returns invalid status code',
-          403,
-        );
-      }
+      return _decode(response, decoder);
     } catch (e) {
-      warning(e.toString());
-      throw const UnknownException('Internal server error', 500);
+      _handleError(e);
     }
   }
 
   @override
-  Future<Object?> patch(
-    String path, {
+  Future<T> patch<T>(
+    String path,
+    T Function(dynamic json) decoder, {
     Object? data,
     Map<String, Object?>? queryParameters,
     Options? options,
@@ -125,7 +129,7 @@ class RequestServiceImpl implements RequestRepository {
     ProgressCallback? onReceiveProgress,
   }) async {
     try {
-      Response<String> response = await _dio.patch(
+      final response = await _dio.patch<String>(
         path,
         data: data,
         queryParameters: queryParameters,
@@ -134,58 +138,39 @@ class RequestServiceImpl implements RequestRepository {
         onSendProgress: onSendProgress,
         onReceiveProgress: onReceiveProgress,
       );
-      if (response.statusCode != null &&
-          response.statusCode! >= 200 &&
-          response.statusCode! <= 300) {
-        return response.data!;
-      } else {
-        throw const StatusCodeException(
-          'Request returns invalid status code',
-          403,
-        );
-      }
+      return _decode(response, decoder);
     } catch (e) {
-      warning(e.toString());
-      throw const UnknownException('Internal server error', 500);
+      _handleError(e);
     }
   }
 
   @override
-  Future<Object?> delete(
-    String path, {
+  Future<T> delete<T>(
+    String path,
+    T Function(dynamic json) decoder, {
     Object? data,
     Map<String, Object?>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
   }) async {
     try {
-      Response<String> response = await _dio.delete(
+      final response = await _dio.delete<String>(
         path,
         data: data,
         queryParameters: queryParameters,
         options: options,
         cancelToken: cancelToken,
       );
-      if (response.statusCode != null &&
-          response.statusCode! >= 200 &&
-          response.statusCode! <= 300) {
-        return response.data!;
-      } else {
-        throw const StatusCodeException(
-          'Request returns invalid status code',
-          403,
-        );
-      }
+      return _decode(response, decoder);
     } catch (e) {
-      warning(e.toString());
-      throw const UnknownException('Internal server error.', 500);
+      _handleError(e);
     }
   }
 
   @override
-  Future<Object?> download(
+  Future<void> download(
     String urlPath,
-    Object? savePath, {
+    Object savePath, {
     ProgressCallback? onReceiveProgress,
     Map<String, Object?>? queryParameters,
     CancelToken? cancelToken,
@@ -195,7 +180,7 @@ class RequestServiceImpl implements RequestRepository {
     Options? options,
   }) async {
     try {
-      Response<Object?> response = await _dio.download(
+      final response = await _dio.download(
         urlPath,
         savePath,
         onReceiveProgress: onReceiveProgress,
@@ -206,19 +191,12 @@ class RequestServiceImpl implements RequestRepository {
         data: data,
         options: options,
       );
-      if (response.statusCode != null &&
-          response.statusCode! >= 200 &&
-          response.statusCode! <= 300) {
-        return response.data;
-      } else {
-        throw const StatusCodeException(
-          'Request returns invalid status code',
-          403,
-        );
+      final statusCode = response.statusCode ?? 0;
+      if (statusCode < 200 || statusCode >= 300) {
+        throw StatusCodeException('Download returned invalid status code', statusCode);
       }
     } catch (e) {
-      warning(e.toString());
-      throw const UnknownException('Internal server error', 500);
+      _handleError(e);
     }
   }
 }

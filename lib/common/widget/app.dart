@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/pages/home_page/custom_riverpod/post_notifier.dart';
 import '../../features/pages/home_page/home_page.dart';
 import '../constant/theme_config.dart';
 import '../dependency/dependencies.dart';
@@ -20,6 +21,11 @@ class App extends StatelessWidget {
       child: Builder(
         builder: (context) {
           return ProviderScope(
+            overrides: [
+              requestRepositoryProvider.overrideWithValue(
+                DependencyScope.of(context).requestRepository,
+              ),
+            ],
             child: MaterialApp(
               debugShowCheckedModeBanner: false,
               title: 'Postlar',

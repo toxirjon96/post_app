@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/face_id/widget/face_id_page.dart';
 import '../../features/pages/home_page/custom_riverpod/post_notifier.dart';
-import '../../features/pages/home_page/home_page.dart';
 import '../constant/theme_config.dart';
 import '../dependency/dependencies.dart';
 import '../dependency/scope/dependency_scope.dart';
@@ -30,7 +30,7 @@ class App extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               title: 'Postlar',
               theme: ThemeConfig.theme,
-              home: const HomePage(),
+              home: const FaceIdPage(),
             ),
           );
         },

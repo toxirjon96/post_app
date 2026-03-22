@@ -134,7 +134,7 @@ class _LivenessOverlayState extends State<LivenessOverlay>
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: LivenessTask.values.map((task) {
+            children: (state is FaceIdRunning ? state.tasks : LivenessTask.values).map((task) {
               final isCompleted = completedTasks.contains(task);
               final isCurrent = currentTask == task;
               return AnimatedContainer(

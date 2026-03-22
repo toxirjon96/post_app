@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:bloc/bloc.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
@@ -8,6 +10,7 @@ part 'face_id_state.dart';
 
 class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
   FaceIdBloc() : super(const FaceIdInitial()) {
+    _tasks = _generateTasks();
     on<FaceIdStarted>(_onStarted);
     on<FaceIdPermissionResult>(_onPermissionResult);
     on<FaceIdFaceUpdated>(_onFaceUpdated);
@@ -15,12 +18,21 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     on<FaceIdRetry>(_onRetry);
   }
 
-  static const _tasks = LivenessTask.values;
+  late List<LivenessTask> _tasks;
   static const _requiredFrames = 3;
   int _consecutiveFrames = 0;
 
+  /// Randomly picks 2–3 tasks from the full pool in random order.
+  static List<LivenessTask> _generateTasks() {
+    final pool = List<LivenessTask>.from(LivenessTask.values)
+      ..shuffle(Random());
+    final count = 2 + Random().nextInt(2); // 2 or 3
+    return pool.take(count).toList();
+  }
+
   void _onStarted(FaceIdStarted event, Emitter<FaceIdState> emit) {
     emit(FaceIdRunning(
+      tasks: _tasks,
       currentTask: _tasks.first,
       completedTasks: const [],
       faceDetected: false,
@@ -34,6 +46,7 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
       return;
     }
     emit(FaceIdRunning(
+      tasks: _tasks,
       currentTask: _tasks.first,
       completedTasks: const [],
       faceDetected: false,
@@ -61,12 +74,16 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
       _consecutiveFrames++;
       if (_consecutiveFrames >= _requiredFrames) {
         _consecutiveFrames = 0;
-        final completed = [...currentState.completedTasks, currentState.currentTask];
+        final completed = [
+          ...currentState.completedTasks,
+          currentState.currentTask,
+        ];
         final nextIndex = _tasks.indexOf(currentState.currentTask) + 1;
         if (nextIndex >= _tasks.length) {
           emit(const FaceIdAllTasksDone());
         } else {
           emit(FaceIdRunning(
+            tasks: _tasks,
             currentTask: _tasks[nextIndex],
             completedTasks: completed,
             faceDetected: true,
@@ -95,7 +112,9 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
 
   void _onRetry(FaceIdRetry event, Emitter<FaceIdState> emit) {
     _consecutiveFrames = 0;
+    _tasks = _generateTasks();
     emit(FaceIdRunning(
+      tasks: _tasks,
       currentTask: _tasks.first,
       completedTasks: const [],
       faceDetected: false,

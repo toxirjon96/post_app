@@ -14,21 +14,25 @@ final class FaceIdPermissionDenied extends FaceIdState {
 
 final class FaceIdRunning extends FaceIdState {
   const FaceIdRunning({
+    required this.tasks,
     required this.currentTask,
     required this.completedTasks,
     required this.faceDetected,
   }) : super._();
 
+  final List<LivenessTask> tasks;
   final LivenessTask currentTask;
   final List<LivenessTask> completedTasks;
   final bool faceDetected;
 
   FaceIdRunning copyWith({
+    List<LivenessTask>? tasks,
     LivenessTask? currentTask,
     List<LivenessTask>? completedTasks,
     bool? faceDetected,
   }) =>
       FaceIdRunning(
+        tasks: tasks ?? this.tasks,
         currentTask: currentTask ?? this.currentTask,
         completedTasks: completedTasks ?? this.completedTasks,
         faceDetected: faceDetected ?? this.faceDetected,

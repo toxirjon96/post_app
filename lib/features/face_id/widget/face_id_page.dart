@@ -39,8 +39,8 @@ class _FaceIdViewState extends State<_FaceIdView> {
           if (state is FaceIdDone) {
             Navigator.of(context).pushReplacement(
               PageRouteBuilder(
-                pageBuilder: (_, animation, __) => const HomePage(),
-                transitionsBuilder: (_, animation, __, child) => FadeTransition(
+                pageBuilder: (_, animation, _) => const HomePage(),
+                transitionsBuilder: (_, animation, _, child) => FadeTransition(
                   opacity: animation,
                   child: child,
                 ),

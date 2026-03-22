@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../common/dependency/scope/dependency_scope.dart';
 import '../../../../common/util/extension/custom_context_extension.dart';
 import '../bloc/controller/post_bloc_controller.dart';
 import '../bloc/post_bloc.dart';

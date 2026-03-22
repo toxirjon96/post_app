@@ -103,8 +103,8 @@ class _LoginViewState extends State<_LoginView>
           if (state is LoginSuccess) {
             Navigator.of(context).pushReplacement(
               PageRouteBuilder(
-                pageBuilder: (_, anim, __) => const FaceIdPage(),
-                transitionsBuilder: (_, anim, __, child) => FadeTransition(
+                pageBuilder: (_, anim, _) => const FaceIdPage(),
+                transitionsBuilder: (_, anim, _, child) => FadeTransition(
                   opacity: anim,
                   child: child,
                 ),
@@ -498,7 +498,6 @@ class _LoginViewState extends State<_LoginView>
   Widget _buildFooter() {
     return Column(
       children: [
-        // Status indicators
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

@@ -4,8 +4,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../face_id/widget/face_id_page.dart';
 import '../bloc/login_bloc.dart';
 
 class LoginPage extends StatelessWidget {
@@ -32,6 +32,7 @@ class _LoginViewState extends State<_LoginView>
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordVisible = ValueNotifier<bool>(false);
+  final _passwordError = ValueNotifier<String?>('');
   late final AnimationController _entranceController;
   late final Animation<double> _logoFade;
   late final Animation<Offset> _logoSlide;
@@ -73,6 +74,10 @@ class _LoginViewState extends State<_LoginView>
       parent: _entranceController,
       curve: const Interval(0.35, 1.0, curve: Curves.easeOut),
     ));
+
+    _passwordController.addListener(() {
+      _passwordError.value = _validatePassword(_passwordController.text);
+    });
   }
 
   @override
@@ -80,12 +85,30 @@ class _LoginViewState extends State<_LoginView>
     _usernameController.dispose();
     _passwordController.dispose();
     _passwordVisible.dispose();
+    _passwordError.dispose();
     _entranceController.dispose();
     super.dispose();
   }
 
+  /// Returns null when valid, or the first failing rule as a message.
+  String? _validatePassword(String password) {
+    if (password.isEmpty) return null;
+    if (password.length < 6) return 'At least 6 characters required';
+    if (!password.contains(RegExp(r'[A-Z]'))) return 'Add at least one uppercase letter';
+    if (!password.contains(RegExp(r'[a-z]'))) return 'Add at least one lowercase letter';
+    if (!password.contains(RegExp(r'[0-9]'))) return 'Add at least one number';
+    if (!password.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=~`\[\]\\;/]')))
+      return 'Add at least one symbol (!@#\$%...)';
+    return null;
+  }
+
   void _submit(BuildContext context) {
     FocusScope.of(context).unfocus();
+    final pwError = _validatePassword(_passwordController.text);
+    if (pwError != null) {
+      _passwordError.value = pwError;
+      return;
+    }
     context.read<LoginBloc>().add(
           LoginSubmitted(
             username: _usernameController.text,
@@ -101,16 +124,7 @@ class _LoginViewState extends State<_LoginView>
       child: BlocListener<LoginBloc, LoginState>(
         listener: (context, state) {
           if (state is LoginSuccess) {
-            Navigator.of(context).pushReplacement(
-              PageRouteBuilder(
-                pageBuilder: (_, anim, _) => const FaceIdPage(),
-                transitionsBuilder: (_, anim, _, child) => FadeTransition(
-                  opacity: anim,
-                  child: child,
-                ),
-                transitionDuration: const Duration(milliseconds: 500),
-              ),
-            );
+            context.go('/face-id');
           } else if (state is LoginFailure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -139,11 +153,8 @@ class _LoginViewState extends State<_LoginView>
           body: Stack(
             fit: StackFit.expand,
             children: [
-              // Map grid background
               const CustomPaint(painter: _DuonetMapPainter()),
-              // Ambient glow blobs
               _buildAmbientGlow(),
-              // Main content
               SafeArea(
                 child: SingleChildScrollView(
                   physics: const ClampingScrollPhysics(),
@@ -204,10 +215,8 @@ class _LoginViewState extends State<_LoginView>
             height: 380,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(colors: [
-                Color(0x281B8EF8),
-                Colors.transparent,
-              ]),
+              gradient: RadialGradient(
+                  colors: [Color(0x281B8EF8), Colors.transparent]),
             ),
           ),
         ),
@@ -219,10 +228,8 @@ class _LoginViewState extends State<_LoginView>
             height: 300,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: RadialGradient(colors: [
-                Color(0x1E00E5CC),
-                Colors.transparent,
-              ]),
+              gradient: RadialGradient(
+                  colors: [Color(0x1E00E5CC), Colors.transparent]),
             ),
           ),
         ),
@@ -233,14 +240,12 @@ class _LoginViewState extends State<_LoginView>
   Widget _buildLogo() {
     return Column(
       children: [
-        // Icon cluster
         SizedBox(
           width: 88,
           height: 88,
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer glow ring
               Container(
                 width: 88,
                 height: 88,
@@ -252,7 +257,6 @@ class _LoginViewState extends State<_LoginView>
                   ),
                 ),
               ),
-              // Inner gradient circle
               Container(
                 width: 68,
                 height: 68,
@@ -274,8 +278,7 @@ class _LoginViewState extends State<_LoginView>
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const Icon(Icons.route_rounded,
-                        color: Colors.white, size: 30),
+                    const Icon(Icons.route_rounded, color: Colors.white, size: 30),
                     Positioned(
                       right: 10,
                       top: 10,
@@ -295,7 +298,6 @@ class _LoginViewState extends State<_LoginView>
           ),
         ),
         const SizedBox(height: 22),
-        // DUONET wordmark
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Color(0xFFFFFFFF), Color(0xFFB8D4FF)],
@@ -313,7 +315,6 @@ class _LoginViewState extends State<_LoginView>
           ),
         ),
         const SizedBox(height: 10),
-        // Tag row
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -421,7 +422,55 @@ class _LoginViewState extends State<_LoginView>
                   ),
                 ),
               ),
-              const SizedBox(height: 28),
+              // Password validation hint
+              ValueListenableBuilder<String?>(
+                valueListenable: _passwordError,
+                builder: (_, error, __) {
+                  if (error == null || error.isEmpty) {
+                    // Show green "strong" indicator when password is valid and non-empty
+                    if (_passwordController.text.isNotEmpty && error == null) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 4),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle_outline_rounded,
+                                color: Color(0xFF00D68F), size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Password looks good',
+                              style: TextStyle(
+                                color: const Color(0xFF00D68F).withOpacity(0.9),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8, left: 4),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            color: Color(0xFFFFB347), size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            error,
+                            style: const TextStyle(
+                              color: Color(0xFFFFB347),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
               BlocBuilder<LoginBloc, LoginState>(
                 builder: (context, state) {
                   final isLoading = state is LoginLoading;
@@ -449,8 +498,7 @@ class _LoginViewState extends State<_LoginView>
                             ? []
                             : [
                                 BoxShadow(
-                                  color: const Color(0xFF1B8EF8)
-                                      .withOpacity(0.35),
+                                  color: const Color(0xFF1B8EF8).withOpacity(0.35),
                                   blurRadius: 18,
                                   offset: const Offset(0, 6),
                                 ),
@@ -529,9 +577,7 @@ class _LoginViewState extends State<_LoginView>
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(color: color.withOpacity(0.6), blurRadius: 6),
-            ],
+            boxShadow: [BoxShadow(color: color.withOpacity(0.6), blurRadius: 6)],
           ),
         ),
         const SizedBox(width: 6),
@@ -628,7 +674,6 @@ class _DuonetMapPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    // Route lines suggesting roads/paths
     final routePaint = Paint()
       ..color = const Color(0xFF1B8EF8).withOpacity(0.10)
       ..strokeWidth = 1.5
@@ -647,34 +692,22 @@ class _DuonetMapPainter extends CustomPainter {
           size.width * 0.5, size.height * 0.72, size.width * 0.85, size.height * 0.35);
     canvas.drawPath(path2, routePaint);
 
-    // GPS location dots
-    final rng = math.Random(42); // fixed seed for deterministic positions
+    final rng = math.Random(42);
     final dotPaint = Paint()..style = PaintingStyle.fill;
     for (int i = 0; i < 7; i++) {
       final pos = Offset(
         rng.nextDouble() * size.width,
         rng.nextDouble() * size.height,
       );
-      final color = i.isEven
-          ? const Color(0xFF1B8EF8)
-          : const Color(0xFF00E5CC);
-
-      // Outer ring
-      canvas.drawCircle(
-        pos,
-        8,
-        Paint()..color = color.withOpacity(0.08),
-      );
-      // Inner dot
+      final color = i.isEven ? const Color(0xFF1B8EF8) : const Color(0xFF00E5CC);
+      canvas.drawCircle(pos, 8, Paint()..color = color.withOpacity(0.08));
       dotPaint.color = color.withOpacity(0.45);
       canvas.drawCircle(pos, 2.5, dotPaint);
     }
 
-    // Car / worker icons (small triangles as simplified vehicle markers)
     final markerPaint = Paint()
       ..color = const Color(0xFF00E5CC).withOpacity(0.35)
       ..style = PaintingStyle.fill;
-
     final markerPositions = [
       Offset(size.width * 0.22, size.height * 0.35),
       Offset(size.width * 0.68, size.height * 0.55),

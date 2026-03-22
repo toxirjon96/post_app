@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../common/util/custom_enum/custom_state_type_enum.dart';
+import '../../../common/widget/scaffold_key_scope.dart';
 import 'widget/custom_dropdown.dart';
 import 'widget/post_bloc_visualizer.dart';
 import 'widget/post_riverpod_visualizer.dart';
@@ -28,7 +29,12 @@ class _HomePageState extends State<HomePage> {
       builder: (stateContext, stateValue, stateChild) {
         return Scaffold(
           appBar: AppBar(
-            title: Text('Posts ${stateValue.name} orqali'),
+            leading: IconButton(
+              icon: const Icon(Icons.menu_rounded),
+              onPressed: () =>
+                  ScaffoldKeyScope.of(context).currentState?.openDrawer(),
+            ),
+            title: Text('Posts via ${stateValue.name}'),
             centerTitle: true,
           ),
           body: Column(
@@ -36,7 +42,7 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: EdgeInsetsGeometry.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: CustomDropdown(
                   selectedValue: stateValue,
                   onChanged: (value) {

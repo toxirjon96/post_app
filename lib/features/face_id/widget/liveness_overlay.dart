@@ -8,7 +8,6 @@ import '../model/liveness_task.dart';
 
 class LivenessOverlay extends StatefulWidget {
   const LivenessOverlay({super.key, required this.onSelfiePressed});
-
   final VoidCallback onSelfiePressed;
 
   @override
@@ -92,16 +91,14 @@ class _LivenessOverlayState extends State<LivenessOverlay>
         return Stack(
           fit: StackFit.expand,
           children: [
-            _FaceOvalPainterWidget(
-              state: state,
-              pulseAnim: _pulseAnim,
-            ),
-            if (state is FaceIdRunning || state is FaceIdAllTasksDone || state is FaceIdPermissionDenied)
+            _FaceOvalPainterWidget(state: state, pulseAnim: _pulseAnim),
+            // Top progress bar — only shown during active task execution
+            if (state is FaceIdRunning || state is FaceIdPermissionDenied)
               _buildTopProgressBar(state),
             if (state is FaceIdRunning)
               _buildTaskCard(state),
             if (state is FaceIdAllTasksDone)
-              _buildSelfieButton(),
+              _buildSelfiePanel(state),
             if (state is FaceIdPermissionDenied)
               _buildPermissionDenied(context),
             if (state is FaceIdInitial)
@@ -113,8 +110,12 @@ class _LivenessOverlayState extends State<LivenessOverlay>
   }
 
   Widget _buildTopProgressBar(FaceIdState state) {
-    final completedTasks = state is FaceIdRunning ? state.completedTasks : <LivenessTask>[];
-    final currentTask = state is FaceIdRunning ? state.currentTask : null;
+    final completedTasks =
+        state is FaceIdRunning ? state.completedTasks : <LivenessTask>[];
+    final currentTask =
+        state is FaceIdRunning ? state.currentTask : null;
+    final tasks =
+        state is FaceIdRunning ? state.tasks : <LivenessTask>[];
 
     return Positioned(
       top: MediaQuery.of(context).padding.top + 20,
@@ -134,7 +135,7 @@ class _LivenessOverlayState extends State<LivenessOverlay>
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: (state is FaceIdRunning ? state.tasks : LivenessTask.values).map((task) {
+            children: tasks.map((task) {
               final isCompleted = completedTasks.contains(task);
               final isCurrent = currentTask == task;
               return AnimatedContainer(
@@ -226,11 +227,8 @@ class _LivenessOverlayState extends State<LivenessOverlay>
                                 width: 1.5,
                               ),
                             ),
-                            child: Icon(
-                              state.currentTask.icon,
-                              color: state.currentTask.color,
-                              size: 30,
-                            ),
+                            child: Icon(state.currentTask.icon,
+                                color: state.currentTask.color, size: 30),
                           ),
                           const SizedBox(height: 14),
                           Text(
@@ -249,7 +247,6 @@ class _LivenessOverlayState extends State<LivenessOverlay>
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.6),
                               fontSize: 14,
-                              fontWeight: FontWeight.w400,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -260,8 +257,14 @@ class _LivenessOverlayState extends State<LivenessOverlay>
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: state.faceDetected
-                                    ? [state.currentTask.color, state.currentTask.color.withOpacity(0.4)]
-                                    : [Colors.white.withOpacity(0.2), Colors.white.withOpacity(0.05)],
+                                    ? [
+                                        state.currentTask.color,
+                                        state.currentTask.color.withOpacity(0.4)
+                                      ]
+                                    : [
+                                        Colors.white.withOpacity(0.2),
+                                        Colors.white.withOpacity(0.05)
+                                      ],
                               ),
                               borderRadius: BorderRadius.circular(2),
                             ),
@@ -292,7 +295,8 @@ class _LivenessOverlayState extends State<LivenessOverlay>
     );
   }
 
-  Widget _buildSelfieButton() {
+  Widget _buildSelfiePanel(FaceIdAllTasksDone state) {
+    final facePresent = state.facePresent;
     return Positioned(
       bottom: 0,
       left: 0,
@@ -335,7 +339,7 @@ class _LivenessOverlayState extends State<LivenessOverlay>
                             color: const Color(0xFF00D68F).withOpacity(0.4),
                             blurRadius: 20,
                             spreadRadius: 2,
-                          )
+                          ),
                         ],
                       ),
                       child: const Icon(Icons.check_rounded,
@@ -352,43 +356,83 @@ class _LivenessOverlayState extends State<LivenessOverlay>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'You\'re all set. Take your selfie to continue.',
+                      facePresent
+                          ? 'Face detected — ready to take selfie'
+                          : 'Center your face in the oval to take a selfie',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: facePresent
+                            ? const Color(0xFF00D68F).withOpacity(0.9)
+                            : Colors.white.withOpacity(0.5),
                         fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
+                    // Face presence indicator bar
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      height: 3,
+                      width: facePresent ? 100 : 50,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: facePresent
+                              ? [const Color(0xFF00D68F), const Color(0xFF00C9E4)]
+                              : [Colors.white12, Colors.white.withOpacity(0.04)],
+                        ),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Selfie button — disabled when no face
                     GestureDetector(
-                      onTap: widget.onSelfiePressed,
-                      child: Container(
+                      onTap: facePresent ? widget.onSelfiePressed : null,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
                         height: 58,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF7C6FF7), Color(0xFF00C9E4)],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
+                          gradient: facePresent
+                              ? const LinearGradient(
+                                  colors: [Color(0xFF7C6FF7), Color(0xFF00C9E4)],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                )
+                              : LinearGradient(
+                                  colors: [
+                                    Colors.white.withOpacity(0.08),
+                                    Colors.white.withOpacity(0.05),
+                                  ],
+                                ),
                           borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF7C6FF7).withOpacity(0.4),
-                              blurRadius: 20,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
+                          boxShadow: facePresent
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFF7C6FF7).withOpacity(0.4),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ]
+                              : [],
+                          border: facePresent
+                              ? null
+                              : Border.all(color: Colors.white12, width: 1),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.camera_alt_rounded,
-                                color: Colors.white, size: 22),
-                            SizedBox(width: 10),
+                            Icon(
+                              Icons.camera_alt_rounded,
+                              color: facePresent
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.3),
+                              size: 22,
+                            ),
+                            const SizedBox(width: 10),
                             Text(
                               'Take Selfie',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: facePresent
+                                    ? Colors.white
+                                    : Colors.white.withOpacity(0.3),
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,
@@ -430,8 +474,8 @@ class _LivenessOverlayState extends State<LivenessOverlay>
             Text(
               'Please allow camera access in your device settings to use Face ID.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white.withOpacity(0.6), fontSize: 14),
+              style:
+                  TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
             ),
             const SizedBox(height: 28),
             GestureDetector(
@@ -479,8 +523,11 @@ class _FaceOvalPainterWidget extends AnimatedWidget {
           : Colors.white.withOpacity(0.5);
       showGlow = running.faceDetected;
     } else if (state is FaceIdAllTasksDone) {
-      borderColor = const Color(0xFF00D68F);
-      showGlow = true;
+      final done = state as FaceIdAllTasksDone;
+      borderColor = done.facePresent
+          ? const Color(0xFF00D68F)
+          : Colors.white.withOpacity(0.4);
+      showGlow = done.facePresent;
     } else {
       borderColor = Colors.white.withOpacity(0.3);
       showGlow = false;
@@ -514,18 +561,13 @@ class _OvalOverlayPainter extends CustomPainter {
       height: size.height * 0.48,
     );
 
-    // Dark vignette outside the oval
     final bgPath = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addOval(ovalRect)
       ..fillType = PathFillType.evenOdd;
 
-    canvas.drawPath(
-      bgPath,
-      Paint()..color = Colors.black.withOpacity(0.62),
-    );
+    canvas.drawPath(bgPath, Paint()..color = Colors.black.withOpacity(0.62));
 
-    // Glow ring
     if (glowIntensity > 0) {
       canvas.drawOval(
         ovalRect,
@@ -537,7 +579,6 @@ class _OvalOverlayPainter extends CustomPainter {
       );
     }
 
-    // Main border
     canvas.drawOval(
       ovalRect,
       Paint()

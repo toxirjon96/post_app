@@ -22,11 +22,9 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
   static const _requiredFrames = 3;
   int _consecutiveFrames = 0;
 
-  /// Randomly picks 2–3 tasks from the full pool in random order.
   static List<LivenessTask> _generateTasks() {
-    final pool = List<LivenessTask>.from(LivenessTask.values)
-      ..shuffle(Random());
-    final count = 2 + Random().nextInt(2); // 2 or 3
+    final pool = List<LivenessTask>.from(LivenessTask.values)..shuffle(Random());
+    final count = 2 + Random().nextInt(2);
     return pool.take(count).toList();
   }
 
@@ -39,8 +37,7 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     ));
   }
 
-  void _onPermissionResult(
-      FaceIdPermissionResult event, Emitter<FaceIdState> emit) {
+  void _onPermissionResult(FaceIdPermissionResult event, Emitter<FaceIdState> emit) {
     if (!event.granted) {
       emit(const FaceIdPermissionDenied());
       return;
@@ -55,6 +52,16 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
 
   void _onFaceUpdated(FaceIdFaceUpdated event, Emitter<FaceIdState> emit) {
     final currentState = state;
+
+    // When all tasks done, track face presence for selfie button
+    if (currentState is FaceIdAllTasksDone) {
+      final facePresent = event.face != null;
+      if (facePresent != currentState.facePresent) {
+        emit(currentState.copyWith(facePresent: facePresent));
+      }
+      return;
+    }
+
     if (currentState is! FaceIdRunning) return;
 
     final face = event.face;
@@ -74,10 +81,7 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
       _consecutiveFrames++;
       if (_consecutiveFrames >= _requiredFrames) {
         _consecutiveFrames = 0;
-        final completed = [
-          ...currentState.completedTasks,
-          currentState.currentTask,
-        ];
+        final completed = [...currentState.completedTasks, currentState.currentTask];
         final nextIndex = _tasks.indexOf(currentState.currentTask) + 1;
         if (nextIndex >= _tasks.length) {
           emit(const FaceIdAllTasksDone());

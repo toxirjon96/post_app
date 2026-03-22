@@ -40,7 +40,11 @@ final class FaceIdRunning extends FaceIdState {
 }
 
 final class FaceIdAllTasksDone extends FaceIdState {
-  const FaceIdAllTasksDone() : super._();
+  const FaceIdAllTasksDone({this.facePresent = false}) : super._();
+  final bool facePresent;
+
+  FaceIdAllTasksDone copyWith({bool? facePresent}) =>
+      FaceIdAllTasksDone(facePresent: facePresent ?? this.facePresent);
 }
 
 final class FaceIdDone extends FaceIdState {

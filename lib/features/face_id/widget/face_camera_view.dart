@@ -117,8 +117,7 @@ class FaceCameraViewState extends State<FaceCameraView> {
     if (Platform.isIOS) {
       rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
     } else if (Platform.isAndroid) {
-      var compensation =
-          _orientations[controller.value.deviceOrientation] ?? 0;
+      var compensation = _orientations[controller.value.deviceOrientation] ?? 0;
       if (camera.lensDirection == CameraLensDirection.front) {
         compensation = (sensorOrientation + compensation) % 360;
       } else {
@@ -168,9 +167,10 @@ class FaceCameraViewState extends State<FaceCameraView> {
       return const ColoredBox(color: Colors.black);
     }
 
+    // Stop stream only when completely done (navigating away)
     return BlocListener<FaceIdBloc, FaceIdState>(
       listener: (context, state) {
-        if (state is FaceIdAllTasksDone) {
+        if (state is FaceIdDone) {
           controller.stopImageStream().catchError((_) {});
         }
       },

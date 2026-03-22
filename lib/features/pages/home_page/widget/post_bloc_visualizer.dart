@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../common/dependency/scope/dependency_scope.dart';
+import '../../../../common/util/extension/custom_context_extension.dart';
 import '../bloc/controller/post_bloc_controller.dart';
 import '../bloc/post_bloc.dart';
 import 'post_list_view.dart';
@@ -19,7 +20,7 @@ class _PostBlocVisualizerState extends State<PostBlocVisualizer> {
   @override
   void initState() {
     _postBloc = PostBloc(
-      requestRepository: DependencyScope.of(context).requestRepository,
+      requestRepository: context.requestRepository,
     );
     PostBlocController.findPosts(targetBloc: _postBloc);
     super.initState();

@@ -6,6 +6,8 @@ import '../common/placeholder_body.dart';
 class MapViewPage extends StatelessWidget {
   const MapViewPage({super.key});
 
+  Future<void> _handleRefresh() => Future.delayed(const Duration(milliseconds: 800));
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,11 +19,12 @@ class MapViewPage extends StatelessWidget {
         title: const Text('Map'),
         centerTitle: true,
       ),
-      body: const PlaceholderBody(
+      body: PlaceholderBody(
         icon: Icons.map_rounded,
-        color: Color(0xFF4CAF50),
+        color: const Color(0xFF4CAF50),
         title: 'Fleet Map',
         subtitle: 'Live map view of all active vehicles,\nworkers and delivery routes.',
+        onRefresh: _handleRefresh,
       ),
     );
   }

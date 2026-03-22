@@ -6,6 +6,8 @@ import '../common/placeholder_body.dart';
 class FaceRecognitionPage extends StatelessWidget {
   const FaceRecognitionPage({super.key});
 
+  Future<void> _handleRefresh() => Future.delayed(const Duration(milliseconds: 800));
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,11 +19,12 @@ class FaceRecognitionPage extends StatelessWidget {
         title: const Text('Face Recognition'),
         centerTitle: true,
       ),
-      body: const PlaceholderBody(
+      body: PlaceholderBody(
         icon: Icons.face_rounded,
-        color: Color(0xFF7C6FF7),
+        color: const Color(0xFF7C6FF7),
         title: 'Face Recognition',
         subtitle: 'Identify and verify workers using\nAI-powered facial recognition technology.',
+        onRefresh: _handleRefresh,
       ),
     );
   }

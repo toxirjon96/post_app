@@ -6,6 +6,8 @@ import '../common/placeholder_body.dart';
 class OrganizationsPage extends StatelessWidget {
   const OrganizationsPage({super.key});
 
+  Future<void> _handleRefresh() => Future.delayed(const Duration(milliseconds: 800));
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,11 +19,12 @@ class OrganizationsPage extends StatelessWidget {
         title: const Text('Organizations'),
         centerTitle: true,
       ),
-      body: const PlaceholderBody(
+      body: PlaceholderBody(
         icon: Icons.corporate_fare_rounded,
-        color: Color(0xFF00D68F),
+        color: const Color(0xFF00D68F),
         title: 'Organizations',
         subtitle: 'Manage partner organizations, branches\nand fleet management companies.',
+        onRefresh: _handleRefresh,
       ),
     );
   }

@@ -4,50 +4,128 @@ import '../model/post_response.dart';
 import 'post_card.dart';
 
 class PostListView extends StatelessWidget {
-  const PostListView({super.key, required this.posts});
+  const PostListView({
+    super.key,
+    required this.posts,
+    this.onRefresh,
+  });
 
   final List<PostResponse> posts;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+    final useGrid = isLandscape || isTablet;
+
+    Widget listContent = useGrid
+        ? _buildGrid(context, isLandscape)
+        : _buildList(context);
+
+    if (onRefresh != null) {
+      listContent = RefreshIndicator(
+        onRefresh: onRefresh!,
+        child: listContent,
+      );
+    }
+
     return Column(
       children: [
-        Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Colors.blue, Colors.indigo],
-            ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total Posts',
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
-              Text(
-                posts.length.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: posts.length,
-            itemBuilder: (context, index) {
-              return PostCard(post: posts[index], index: index);
-            },
-          ),
-        ),
+        _SummaryBanner(count: posts.length, isLandscape: isLandscape),
+        Expanded(child: listContent),
       ],
+    );
+  }
+
+  Widget _buildList(BuildContext context) {
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 16),
+      itemCount: posts.length,
+      itemBuilder: (context, index) =>
+          PostCard(post: posts[index], index: index),
+    );
+  }
+
+  Widget _buildGrid(BuildContext context, bool isLandscape) {
+    final crossCount = isLandscape ? 2 : 2;
+    return GridView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossCount,
+        crossAxisSpacing: 0,
+        mainAxisSpacing: 0,
+        childAspectRatio: isLandscape ? 1.4 : 1.2,
+      ),
+      itemCount: posts.length,
+      itemBuilder: (context, index) =>
+          PostCard(post: posts[index], index: index),
+    );
+  }
+}
+
+class _SummaryBanner extends StatelessWidget {
+  const _SummaryBanner({required this.count, required this.isLandscape});
+
+  final int count;
+  final bool isLandscape;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.all(isLandscape ? 8 : 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: isLandscape ? 16 : 20,
+        vertical: isLandscape ? 10 : 14,
+      ),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1B8EF8), Color(0xFF3B5BDB)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1B8EF8).withValues(alpha: 0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.article_rounded, color: Colors.white, size: 22),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Total Posts',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              count.toString(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

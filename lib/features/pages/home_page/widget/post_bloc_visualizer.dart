@@ -18,11 +18,16 @@ class _PostBlocVisualizerState extends State<PostBlocVisualizer> {
 
   @override
   void initState() {
-    _postBloc = PostBloc(
-      requestRepository: context.requestRepository,
-    );
+    _postBloc = PostBloc(requestRepository: context.requestRepository);
     PostBlocController.findPosts(targetBloc: _postBloc);
     super.initState();
+  }
+
+  Future<void> _refresh() async {
+    PostBlocController.findPosts(targetBloc: _postBloc);
+    await _postBloc.stream.firstWhere(
+      (s) => s is! PostLoading$State,
+    );
   }
 
   @override
@@ -32,34 +37,42 @@ class _PostBlocVisualizerState extends State<PostBlocVisualizer> {
       child: BlocConsumer<PostBloc, PostState>(
         builder: (postContext, postState) {
           if (postState is PostLoading$State) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           } else if (postState is PostError$State) {
-            return Center(
-              child: Text(
-                postState.message,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                maxLines: 3,
-              ),
+            return _ErrorView(
+              message: postState.message,
+              onRetry: _refresh,
             );
           } else if (postState is PostListFindSuccess$State &&
               postState.resultList.isNotEmpty) {
-            final posts = postState.resultList;
-            return PostListView(posts: posts);
+            return PostListView(
+              posts: postState.resultList,
+              onRefresh: _refresh,
+            );
           } else if (postState is PostListFindSuccess$State &&
               postState.resultList.isEmpty) {
-            return Center(
-              child: Text(
-                'Ma\'lumot topilmadi',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                maxLines: 3,
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 80),
+                  Center(
+                    child: Text(
+                      'Ma\'lumot topilmadi',
+                      style: TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
             );
           } else {
             return Center(
               child: Text(
                 'Tizimda xatolik',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                maxLines: 3,
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600),
               ),
             );
           }
@@ -70,13 +83,52 @@ class _PostBlocVisualizerState extends State<PostBlocVisualizer> {
               SnackBar(
                 content: Text(
                   postState.message,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600),
                   maxLines: 3,
                 ),
               ),
             );
           }
         },
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: () async => onRetry(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 80),
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600),
+                  maxLines: 3,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

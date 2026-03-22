@@ -6,6 +6,8 @@ import '../common/placeholder_body.dart';
 class FavoritesPage extends StatelessWidget {
   const FavoritesPage({super.key});
 
+  Future<void> _handleRefresh() => Future.delayed(const Duration(milliseconds: 800));
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,11 +19,12 @@ class FavoritesPage extends StatelessWidget {
         title: const Text('Favorites'),
         centerTitle: true,
       ),
-      body: const PlaceholderBody(
+      body: PlaceholderBody(
         icon: Icons.favorite_rounded,
-        color: Color(0xFFFF4081),
+        color: const Color(0xFFFF4081),
         title: 'Favorites',
         subtitle: 'Your saved locations, vehicles and\nfrequently accessed resources.',
+        onRefresh: _handleRefresh,
       ),
     );
   }

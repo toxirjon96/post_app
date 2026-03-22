@@ -6,6 +6,8 @@ import '../common/placeholder_body.dart';
 class SearchCarPage extends StatelessWidget {
   const SearchCarPage({super.key});
 
+  Future<void> _handleRefresh() => Future.delayed(const Duration(milliseconds: 800));
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,11 +19,12 @@ class SearchCarPage extends StatelessWidget {
         title: const Text('Search Car'),
         centerTitle: true,
       ),
-      body: const PlaceholderBody(
+      body: PlaceholderBody(
         icon: Icons.directions_car_rounded,
-        color: Color(0xFFF59E0B),
+        color: const Color(0xFFF59E0B),
         title: 'Search Car',
         subtitle: 'Track vehicles, view status and assign\ncars to active workers in real time.',
+        onRefresh: _handleRefresh,
       ),
     );
   }

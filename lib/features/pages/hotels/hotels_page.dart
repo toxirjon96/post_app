@@ -6,6 +6,8 @@ import '../common/placeholder_body.dart';
 class HotelsPage extends StatelessWidget {
   const HotelsPage({super.key});
 
+  Future<void> _handleRefresh() => Future.delayed(const Duration(milliseconds: 800));
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,11 +19,12 @@ class HotelsPage extends StatelessWidget {
         title: const Text('Hotels'),
         centerTitle: true,
       ),
-      body: const PlaceholderBody(
+      body: PlaceholderBody(
         icon: Icons.hotel_rounded,
-        color: Color(0xFFFF6B6B),
+        color: const Color(0xFFFF6B6B),
         title: 'Hotels',
         subtitle: 'Browse and book accommodation\nfor field workers and fleet drivers.',
+        onRefresh: _handleRefresh,
       ),
     );
   }

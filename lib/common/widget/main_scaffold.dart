@@ -49,25 +49,179 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     final selectedIndex = _selectedIndex(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
 
     return ScaffoldKeyScope(
       scaffoldKey: _scaffoldKey,
-      child: Scaffold(
-        key: _scaffoldKey,
-        drawer: const AppDrawerWidget(),
-        body: widget.child,
-        bottomNavigationBar: _DuonetBottomNav(
-          items: _navItems,
-          selectedIndex: selectedIndex,
-          isDark: isDark,
-          onTap: (i) => context.go(_routes[i]),
+      child: isLandscape
+          ? _buildLandscapeLayout(context, selectedIndex, isDark)
+          : _buildPortraitLayout(context, selectedIndex, isDark),
+    );
+  }
+
+  // ── Portrait: bottom nav ──────────────────────────────────────────────────
+
+  Widget _buildPortraitLayout(
+      BuildContext context, int selectedIndex, bool isDark) {
+    return Scaffold(
+      key: _scaffoldKey,
+      drawer: const AppDrawerWidget(),
+      body: widget.child,
+      bottomNavigationBar: _DuonetBottomNav(
+        items: _navItems,
+        selectedIndex: selectedIndex,
+        isDark: isDark,
+        onTap: (i) => context.go(_routes[i]),
+      ),
+    );
+  }
+
+  // ── Landscape: navigation rail ────────────────────────────────────────────
+
+  Widget _buildLandscapeLayout(
+      BuildContext context, int selectedIndex, bool isDark) {
+    final railBg = isDark ? const Color(0xFF0D1028) : Colors.white;
+    final borderColor = isDark
+        ? const Color(0xFF1B8EF8).withValues(alpha: 0.12)
+        : Colors.grey.withValues(alpha: 0.12);
+
+    return Scaffold(
+      key: _scaffoldKey,
+      drawer: const AppDrawerWidget(),
+      body: Row(
+        children: [
+          // Navigation Rail
+          Container(
+            width: 72,
+            decoration: BoxDecoration(
+              color: railBg,
+              border: Border(
+                right: BorderSide(color: borderColor, width: 1),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(2, 0),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  // Menu button
+                  IconButton(
+                    icon: Icon(
+                      Icons.menu_rounded,
+                      color: isDark ? Colors.white54 : Colors.grey.shade600,
+                      size: 22,
+                    ),
+                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                    tooltip: 'Menu',
+                  ),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _navItems.length,
+                      itemBuilder: (context, i) {
+                        final item = _navItems[i];
+                        final isSelected = i == selectedIndex;
+                        return _RailItem(
+                          item: item,
+                          isSelected: isSelected,
+                          isDark: isDark,
+                          onTap: () => context.go(_routes[i]),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Content
+          Expanded(child: widget.child),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Rail item ──────────────────────────────────────────────────────────────
+
+class _RailItem extends StatelessWidget {
+  const _RailItem({
+    required this.item,
+    required this.isSelected,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final _NavItem item;
+  final bool isSelected;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? item.color.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedScale(
+              scale: isSelected ? 1.15 : 1.0,
+              duration: const Duration(milliseconds: 220),
+              child: Icon(
+                isSelected ? item.activeIcon : item.icon,
+                size: 20,
+                color: isSelected
+                    ? item.color
+                    : isDark
+                        ? Colors.white.withValues(alpha: 0.35)
+                        : Colors.grey.withValues(alpha: 0.55),
+              ),
+            ),
+            const SizedBox(height: 3),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 220),
+              style: TextStyle(
+                fontSize: isSelected ? 8 : 0,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? item.color : Colors.transparent,
+                height: isSelected ? 1.1 : 0,
+              ),
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.clip,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ─── Bottom Nav ───────────────────────────────────────────────────────────────
+// ── Bottom Nav ──────────────────────────────────────────────────────────────
 
 class _NavItem {
   final String label;
@@ -94,8 +248,8 @@ class _DuonetBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = isDark ? const Color(0xFF0D1028) : Colors.white;
     final border = isDark
-        ? const Color(0xFF1B8EF8).withOpacity(0.15)
-        : Colors.grey.withOpacity(0.15);
+        ? const Color(0xFF1B8EF8).withValues(alpha: 0.15)
+        : Colors.grey.withValues(alpha: 0.15);
 
     return Container(
       decoration: BoxDecoration(
@@ -104,8 +258,8 @@ class _DuonetBottomNav extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: isDark
-                ? const Color(0xFF1B8EF8).withOpacity(0.06)
-                : Colors.black.withOpacity(0.06),
+                ? const Color(0xFF1B8EF8).withValues(alpha: 0.06)
+                : Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),
@@ -131,17 +285,24 @@ class _DuonetBottomNav extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Indicator dot above active icon
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 250),
                           width: isSelected ? 20 : 0,
                           height: 3,
                           margin: const EdgeInsets.only(bottom: 4),
                           decoration: BoxDecoration(
-                            color: isSelected ? item.color : Colors.transparent,
+                            color: isSelected
+                                ? item.color
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(2),
                             boxShadow: isSelected
-                                ? [BoxShadow(color: item.color.withOpacity(0.5), blurRadius: 6)]
+                                ? [
+                                    BoxShadow(
+                                      color: item.color
+                                          .withValues(alpha: 0.5),
+                                      blurRadius: 6,
+                                    ),
+                                  ]
                                 : [],
                           ),
                         ),
@@ -154,8 +315,8 @@ class _DuonetBottomNav extends StatelessWidget {
                             color: isSelected
                                 ? item.color
                                 : isDark
-                                    ? Colors.white.withOpacity(0.35)
-                                    : Colors.grey.withOpacity(0.55),
+                                    ? Colors.white.withValues(alpha: 0.35)
+                                    : Colors.grey.withValues(alpha: 0.55),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -164,10 +325,16 @@ class _DuonetBottomNav extends StatelessWidget {
                           style: TextStyle(
                             fontSize: isSelected ? 9 : 0,
                             fontWeight: FontWeight.w700,
-                            color: isSelected ? item.color : Colors.transparent,
+                            color: isSelected
+                                ? item.color
+                                : Colors.transparent,
                             height: isSelected ? 1.2 : 0,
                           ),
-                          child: Text(item.label, maxLines: 1, overflow: TextOverflow.clip),
+                          child: Text(
+                            item.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.clip,
+                          ),
                         ),
                       ],
                     ),

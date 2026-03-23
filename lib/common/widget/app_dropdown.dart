@@ -25,7 +25,7 @@ class AppDropdown<T> extends StatefulWidget {
     this.hint,
     this.label,
     this.prefixIcon,
-    this.searchable = false,
+    this.searchable = true,
     this.clearable = true,
     this.searchHint = 'Search...',
     this.validator,

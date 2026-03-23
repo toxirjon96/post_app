@@ -97,8 +97,9 @@ class _LoginViewState extends State<_LoginView>
     if (!password.contains(RegExp(r'[A-Z]'))) return 'Add at least one uppercase letter';
     if (!password.contains(RegExp(r'[a-z]'))) return 'Add at least one lowercase letter';
     if (!password.contains(RegExp(r'[0-9]'))) return 'Add at least one number';
-    if (!password.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=~`\[\]\\;/]')))
+    if (!password.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=~`\[\]\\;/]'))) {
       return 'Add at least one symbol (!@#\$%...)';
+    }
     return null;
   }
 
@@ -403,7 +404,7 @@ class _LoginViewState extends State<_LoginView>
               const SizedBox(height: 14),
               ValueListenableBuilder<bool>(
                 valueListenable: _passwordVisible,
-                builder: (_, visible, __) => _DuonetTextField(
+                builder: (_, visible, _) => _DuonetTextField(
                   controller: _passwordController,
                   label: 'Password',
                   icon: Icons.lock_outline_rounded,
@@ -425,7 +426,7 @@ class _LoginViewState extends State<_LoginView>
               // Password validation hint
               ValueListenableBuilder<String?>(
                 valueListenable: _passwordError,
-                builder: (_, error, __) {
+                builder: (_, error, _) {
                   if (error == null || error.isEmpty) {
                     // Show green "strong" indicator when password is valid and non-empty
                     if (_passwordController.text.isNotEmpty && error == null) {

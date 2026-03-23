@@ -233,7 +233,7 @@ class _Avatar extends StatelessWidget {
                         child: Image.network(
                           worker.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, _) =>
+                          errorBuilder: (_, _, _) =>
                               _Initials(initials: worker.initials, color: color),
                         ),
                       )

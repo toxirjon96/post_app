@@ -235,7 +235,7 @@ class AppDrawerWidget extends ConsumerWidget {
                           value: themeMode == ThemeMode.dark,
                           onChanged: (val) => ref.read(themeModeProvider.notifier).state =
                               val ? ThemeMode.dark : ThemeMode.light,
-                          activeColor: const Color(0xFF1B8EF8),
+                          activeThumbColor: const Color(0xFF1B8EF8),
                           inactiveThumbColor: Colors.grey,
                         ),
                       ),

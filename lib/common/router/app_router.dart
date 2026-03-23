@@ -19,46 +19,46 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (_, __) => const LoginPage(),
+        builder: (_, _) => const LoginPage(),
       ),
       GoRoute(
         path: '/face-id',
-        builder: (_, __) => const FaceIdPage(),
+        builder: (_, _) => const FaceIdPage(),
       ),
       ShellRoute(
         builder: (context, state, child) => MainScaffold(child: child),
         routes: [
           GoRoute(
             path: '/home/posts',
-            builder: (_, __) => const HomePage(),
+            builder: (_, _) => const HomePage(),
           ),
           GoRoute(
             path: '/home/search-address',
-            builder: (_, __) => const SearchAddressPage(),
+            builder: (_, _) => const SearchAddressPage(),
           ),
           GoRoute(
             path: '/home/search-car',
-            builder: (_, __) => const SearchCarPage(),
+            builder: (_, _) => const SearchCarPage(),
           ),
           GoRoute(
             path: '/home/face-recognition',
-            builder: (_, __) => const FaceRecognitionPage(),
+            builder: (_, _) => const FaceRecognitionPage(),
           ),
           GoRoute(
             path: '/home/hotels',
-            builder: (_, __) => const HotelsPage(),
+            builder: (_, _) => const HotelsPage(),
           ),
           GoRoute(
             path: '/home/organizations',
-            builder: (_, __) => const OrganizationsPage(),
+            builder: (_, _) => const OrganizationsPage(),
           ),
           GoRoute(
             path: '/home/favorites',
-            builder: (_, __) => const FavoritesPage(),
+            builder: (_, _) => const FavoritesPage(),
           ),
           GoRoute(
             path: '/home/map',
-            builder: (_, __) => const MapViewPage(),
+            builder: (_, _) => const MapViewPage(),
           ),
         ],
       ),

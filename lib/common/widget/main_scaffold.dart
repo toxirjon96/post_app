@@ -51,11 +51,13 @@ class _MainScaffoldState extends State<MainScaffold> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
 
+    // Tablets (portrait or landscape) and landscape phones use the rail.
     return ScaffoldKeyScope(
       scaffoldKey: _scaffoldKey,
-      child: isLandscape
-          ? _buildLandscapeLayout(context, selectedIndex, isDark)
+      child: (isLandscape || isTablet)
+          ? _buildRailLayout(context, selectedIndex, isDark, isTablet)
           : _buildPortraitLayout(context, selectedIndex, isDark),
     );
   }
@@ -77,14 +79,16 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
-  // ── Landscape: navigation rail ────────────────────────────────────────────
+  // ── Rail layout: landscape phones, tablet portrait & landscape ───────────
 
-  Widget _buildLandscapeLayout(
-      BuildContext context, int selectedIndex, bool isDark) {
+  Widget _buildRailLayout(
+      BuildContext context, int selectedIndex, bool isDark, bool isTablet) {
     final railBg = isDark ? const Color(0xFF0D1028) : Colors.white;
     final borderColor = isDark
         ? const Color(0xFF1B8EF8).withValues(alpha: 0.12)
         : Colors.grey.withValues(alpha: 0.12);
+    // Wider rail on tablets so labels have breathing room
+    final railWidth = isTablet ? 80.0 : 72.0;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -93,7 +97,7 @@ class _MainScaffoldState extends State<MainScaffold> {
         children: [
           // Navigation Rail
           Container(
-            width: 72,
+            width: railWidth,
             decoration: BoxDecoration(
               color: railBg,
               border: Border(

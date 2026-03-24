@@ -17,11 +17,13 @@ class PostListView extends StatelessWidget {
   Widget build(BuildContext context) {
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
-    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+    final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+    final isTablet = shortestSide >= 600;
+    final isLargeTablet = shortestSide >= 900;
     final useGrid = isLandscape || isTablet;
 
     Widget listContent = useGrid
-        ? _buildGrid(context, isLandscape)
+        ? _buildGrid(context, isLandscape, isLargeTablet)
         : _buildList(context);
 
     if (onRefresh != null) {
@@ -33,7 +35,10 @@ class PostListView extends StatelessWidget {
 
     return Column(
       children: [
-        _SummaryBanner(count: posts.length, isLandscape: isLandscape),
+        _SummaryBanner(
+            count: posts.length,
+            isLandscape: isLandscape,
+            isTablet: isTablet),
         Expanded(child: listContent),
       ],
     );
@@ -49,8 +54,14 @@ class PostListView extends StatelessWidget {
     );
   }
 
-  Widget _buildGrid(BuildContext context, bool isLandscape) {
-    final crossCount = isLandscape ? 2 : 2;
+  Widget _buildGrid(BuildContext context, bool isLandscape, bool isLargeTablet) {
+    // 3 columns on large tablets, 2 elsewhere
+    final crossCount = isLargeTablet ? 3 : 2;
+    final aspectRatio = isLargeTablet
+        ? 1.1
+        : isLandscape
+            ? 1.4
+            : 1.2;
     return GridView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
@@ -58,7 +69,7 @@ class PostListView extends StatelessWidget {
         crossAxisCount: crossCount,
         crossAxisSpacing: 0,
         mainAxisSpacing: 0,
-        childAspectRatio: isLandscape ? 1.4 : 1.2,
+        childAspectRatio: aspectRatio,
       ),
       itemCount: posts.length,
       itemBuilder: (context, index) =>
@@ -68,18 +79,24 @@ class PostListView extends StatelessWidget {
 }
 
 class _SummaryBanner extends StatelessWidget {
-  const _SummaryBanner({required this.count, required this.isLandscape});
+  const _SummaryBanner({
+    required this.count,
+    required this.isLandscape,
+    this.isTablet = false,
+  });
 
   final int count;
   final bool isLandscape;
+  final bool isTablet;
 
   @override
   Widget build(BuildContext context) {
+    final compact = isLandscape && !isTablet;
     return Container(
-      margin: EdgeInsets.all(isLandscape ? 8 : 16),
+      margin: EdgeInsets.all(compact ? 8 : isTablet ? 20 : 16),
       padding: EdgeInsets.symmetric(
-        horizontal: isLandscape ? 16 : 20,
-        vertical: isLandscape ? 10 : 14,
+        horizontal: compact ? 16 : isTablet ? 24 : 20,
+        vertical: compact ? 10 : isTablet ? 16 : 14,
       ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(

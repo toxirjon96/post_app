@@ -24,12 +24,14 @@ class PlaceholderBody extends StatelessWidget {
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
 
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+
     Widget content = LayoutBuilder(
       builder: (context, constraints) {
-        final iconSize = isLandscape ? 56.0 : 80.0;
-        final containerSize = isLandscape ? 80.0 : 96.0;
-        final titleSize = isLandscape ? 18.0 : 22.0;
-        final subtitleSize = isLandscape ? 13.0 : 14.0;
+        final iconSize = isLandscape ? 56.0 : (isTablet ? 96.0 : 80.0);
+        final containerSize = isLandscape ? 80.0 : (isTablet ? 116.0 : 96.0);
+        final titleSize = isLandscape ? 18.0 : (isTablet ? 26.0 : 22.0);
+        final subtitleSize = isLandscape ? 13.0 : (isTablet ? 15.0 : 14.0);
 
         return SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),

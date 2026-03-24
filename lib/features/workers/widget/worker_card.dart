@@ -33,6 +33,7 @@ class WorkerCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final color = _avatarColor(worker.fullName);
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
 
     final cardBg = isDark ? const Color(0xFF141830) : Colors.white;
     final subTextColor = isDark ? Colors.white54 : Colors.grey.shade600;
@@ -43,7 +44,9 @@ class WorkerCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        margin: EdgeInsets.symmetric(
+            horizontal: isTablet ? 20.0 : 16.0,
+            vertical: isTablet ? 8.0 : 6.0),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(18),
@@ -67,7 +70,7 @@ class WorkerCard extends StatelessWidget {
           children: [
             // ── Left: avatar + status ──────────────────────────
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isTablet ? 20.0 : 16.0),
               child: _Avatar(worker: worker, color: color),
             ),
 
@@ -197,8 +200,13 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+    final avatarSize = isTablet ? 80.0 : 64.0;
+    final containerWidth = isTablet ? 88.0 : 72.0;
+    final initFontSize = isTablet ? 26.0 : 22.0;
+
     return SizedBox(
-      width: 72,
+      width: containerWidth,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -206,8 +214,8 @@ class _Avatar extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: 64,
-                height: 64,
+                width: avatarSize,
+                height: avatarSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: worker.imageUrl == null
@@ -233,16 +241,18 @@ class _Avatar extends StatelessWidget {
                         child: Image.network(
                           worker.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              _Initials(initials: worker.initials, color: color),
+                          errorBuilder: (_, _, _) => _Initials(
+                              initials: worker.initials,
+                              color: color,
+                              fontSize: initFontSize),
                         ),
                       )
                     : Center(
                         child: Text(
                           worker.initials,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 22,
+                            fontSize: initFontSize,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -299,9 +309,14 @@ class _Avatar extends StatelessWidget {
 }
 
 class _Initials extends StatelessWidget {
-  const _Initials({required this.initials, required this.color});
+  const _Initials({
+    required this.initials,
+    required this.color,
+    this.fontSize = 22,
+  });
   final String initials;
   final Color color;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -316,9 +331,9 @@ class _Initials extends StatelessWidget {
       child: Center(
         child: Text(
           initials,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 22,
+            fontSize: fontSize,
             fontWeight: FontWeight.w800,
           ),
         ),

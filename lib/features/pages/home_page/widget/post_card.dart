@@ -51,6 +51,7 @@ class _PostCardState extends State<PostCard>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
 
     return FadeTransition(
       opacity: fadeAnimation,
@@ -58,10 +59,10 @@ class _PostCardState extends State<PostCard>
         position: slideAnimation,
         child: Container(
           margin: EdgeInsets.symmetric(
-            horizontal: isLandscape ? 8 : 16,
-            vertical: isLandscape ? 6 : 8,
+            horizontal: isLandscape ? 8 : (isTablet ? 12 : 16),
+            vertical: isLandscape ? 6 : (isTablet ? 7 : 8),
           ),
-          padding: EdgeInsets.all(isLandscape ? 12 : 16),
+          padding: EdgeInsets.all(isLandscape ? 12 : (isTablet ? 18 : 16)),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF141830) : Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -125,7 +126,7 @@ class _PostCardState extends State<PostCard>
               Text(
                 widget.post.title,
                 style: TextStyle(
-                  fontSize: isLandscape ? 14 : 16,
+                  fontSize: isLandscape ? 14 : (isTablet ? 17 : 16),
                   fontWeight: FontWeight.w700,
                   color: isDark ? Colors.white : const Color(0xFF0F1629),
                   height: 1.3,
@@ -137,7 +138,7 @@ class _PostCardState extends State<PostCard>
               Text(
                 widget.post.body,
                 style: TextStyle(
-                  fontSize: isLandscape ? 12 : 14,
+                  fontSize: isLandscape ? 12 : (isTablet ? 14.5 : 14),
                   color: isDark
                       ? Colors.white54
                       : Colors.grey.shade600,

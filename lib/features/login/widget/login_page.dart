@@ -156,46 +156,101 @@ class _LoginViewState extends State<_LoginView>
             children: [
               const CustomPaint(painter: _DuonetMapPainter()),
               _buildAmbientGlow(),
-              SafeArea(
-                child: SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: MediaQuery.of(context).size.height -
-                          MediaQuery.of(context).padding.top -
-                          MediaQuery.of(context).padding.bottom,
+              Builder(builder: (context) {
+                final isLandscape =
+                    MediaQuery.orientationOf(context) == Orientation.landscape;
+                final isTablet =
+                    MediaQuery.sizeOf(context).shortestSide >= 600;
+                return SafeArea(
+                  child: isLandscape
+                      ? _buildLandscapeLogin(context)
+                      : _buildPortraitLogin(context, isTablet),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPortraitLogin(BuildContext context, bool isTablet) {
+    final safeH = MediaQuery.of(context).size.height -
+        MediaQuery.of(context).padding.top -
+        MediaQuery.of(context).padding.bottom;
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: safeH,
+            maxWidth: isTablet ? 520 : double.infinity,
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: isTablet ? 40.0 : 28.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(height: isTablet ? 56.0 : 48.0),
+                SlideTransition(
+                  position: _logoSlide,
+                  child: FadeTransition(opacity: _logoFade, child: _buildLogo()),
+                ),
+                SizedBox(height: isTablet ? 60.0 : 52.0),
+                SlideTransition(
+                  position: _formSlide,
+                  child: FadeTransition(
+                      opacity: _formFade, child: _buildForm(context)),
+                ),
+                const SizedBox(height: 40),
+                FadeTransition(opacity: _formFade, child: _buildFooter()),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLogin(BuildContext context) {
+    final safeH = MediaQuery.of(context).size.height -
+        MediaQuery.of(context).padding.top -
+        MediaQuery.of(context).padding.bottom;
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: safeH),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Logo — left half
+              Expanded(
+                flex: 4,
+                child: SlideTransition(
+                  position: _logoSlide,
+                  child: FadeTransition(
+                      opacity: _logoFade, child: _buildLogo()),
+                ),
+              ),
+              const SizedBox(width: 32),
+              // Form + footer — right half
+              Expanded(
+                flex: 6,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SlideTransition(
+                      position: _formSlide,
+                      child: FadeTransition(
+                          opacity: _formFade, child: _buildForm(context)),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 48),
-                          SlideTransition(
-                            position: _logoSlide,
-                            child: FadeTransition(
-                              opacity: _logoFade,
-                              child: _buildLogo(),
-                            ),
-                          ),
-                          const SizedBox(height: 52),
-                          SlideTransition(
-                            position: _formSlide,
-                            child: FadeTransition(
-                              opacity: _formFade,
-                              child: _buildForm(context),
-                            ),
-                          ),
-                          const SizedBox(height: 40),
-                          FadeTransition(
-                            opacity: _formFade,
-                            child: _buildFooter(),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
-                  ),
+                    const SizedBox(height: 20),
+                    FadeTransition(opacity: _formFade, child: _buildFooter()),
+                  ],
                 ),
               ),
             ],

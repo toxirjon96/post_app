@@ -38,11 +38,14 @@ class _HomePageState extends State<HomePage> {
             title: Text('Posts · ${stateValue.name}'),
             centerTitle: true,
           ),
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          body: Builder(builder: (context) {
+            final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+            final hPad = isTablet ? 20.0 : 16.0;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding: EdgeInsets.fromLTRB(hPad, isTablet ? 16 : 12, hPad, 4),
                 child: AppDropdown<CustomStateTypeEnum>(
                   items: CustomStateTypeEnum.values,
                   value: stateValue,
@@ -67,8 +70,9 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
             ],
-          ),
-        );
+          );
+        }),
+      );
       },
     );
   }

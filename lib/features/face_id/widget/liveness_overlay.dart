@@ -175,6 +175,104 @@ class _LivenessOverlayState extends State<LivenessOverlay>
   }
 
   Widget _buildTaskCard(FaceIdRunning state) {
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    // In landscape: compact right-side panel to keep camera visible
+    if (isLandscape) {
+      return Positioned(
+        top: MediaQuery.of(context).padding.top + 8,
+        bottom: MediaQuery.of(context).padding.bottom + 8,
+        right: 0,
+        width: 180,
+        child: SlideTransition(
+          position: _taskSlideAnim,
+          child: FadeTransition(
+            opacity: _taskFadeAnim,
+            child: ClipRRect(
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(20)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.10),
+                    borderRadius:
+                        const BorderRadius.horizontal(left: Radius.circular(20)),
+                    border: Border(
+                      left: BorderSide(
+                          color: Colors.white.withOpacity(0.2), width: 1),
+                    ),
+                  ),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: Column(
+                      key: ValueKey(state.currentTask),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color:
+                                state.currentTask.color.withOpacity(0.18),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  state.currentTask.color.withOpacity(0.5),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Icon(state.currentTask.icon,
+                              color: state.currentTask.color, size: 22),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          state.currentTask.instruction,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          state.currentTask.hint,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          state.faceDetected
+                              ? 'Face detected'
+                              : 'Center face in oval',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: state.faceDetected
+                                ? state.currentTask.color.withOpacity(0.9)
+                                : Colors.white.withOpacity(0.4),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Portrait: full-width bottom sheet
     return Positioned(
       bottom: 0,
       left: 0,
@@ -297,6 +395,134 @@ class _LivenessOverlayState extends State<LivenessOverlay>
 
   Widget _buildSelfiePanel(FaceIdAllTasksDone state) {
     final facePresent = state.facePresent;
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    if (isLandscape) {
+      return Positioned(
+        top: MediaQuery.of(context).padding.top + 8,
+        bottom: MediaQuery.of(context).padding.bottom + 8,
+        right: 0,
+        width: 200,
+        child: ScaleTransition(
+          scale: _successScaleAnim,
+          child: FadeTransition(
+            opacity: _successOpacityAnim,
+            child: ClipRRect(
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(20)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.10),
+                    borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(20)),
+                    border: Border(
+                      left: BorderSide(
+                          color: Colors.white.withOpacity(0.2), width: 1),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF00D68F), Color(0xFF00C9E4)],
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00D68F).withOpacity(0.4),
+                              blurRadius: 16,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.check_rounded,
+                            color: Colors.white, size: 26),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'All Done!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        facePresent
+                            ? 'Ready for selfie'
+                            : 'Center your face',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: facePresent
+                              ? const Color(0xFF00D68F).withOpacity(0.9)
+                              : Colors.white.withOpacity(0.5),
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      GestureDetector(
+                        onTap: facePresent ? widget.onSelfiePressed : null,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          height: 48,
+                          decoration: BoxDecoration(
+                            gradient: facePresent
+                                ? const LinearGradient(
+                                    colors: [
+                                      Color(0xFF7C6FF7),
+                                      Color(0xFF00C9E4)
+                                    ],
+                                  )
+                                : LinearGradient(
+                                    colors: [
+                                      Colors.white.withOpacity(0.08),
+                                      Colors.white.withOpacity(0.05),
+                                    ],
+                                  ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.camera_alt_rounded,
+                                  color: facePresent
+                                      ? Colors.white
+                                      : Colors.white.withOpacity(0.3),
+                                  size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Selfie',
+                                style: TextStyle(
+                                  color: facePresent
+                                      ? Colors.white
+                                      : Colors.white.withOpacity(0.3),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Positioned(
       bottom: 0,
       left: 0,

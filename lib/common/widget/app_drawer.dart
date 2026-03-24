@@ -27,9 +27,10 @@ class AppDrawerWidget extends ConsumerWidget {
     final bg = isDark ? const Color(0xFF07091A) : const Color(0xFFF8FAFF);
     final surfaceColor = isDark ? const Color(0xFF0F1629) : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF0F1629);
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
 
     return Drawer(
-      width: 285,
+      width: isTablet ? 320 : 285,
       backgroundColor: bg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),

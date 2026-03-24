@@ -183,8 +183,8 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
         _query = '';
         _searchFocus.unfocus();
       } else {
-        WidgetsBinding.instance.addPostFrameCallback(
-            (_) => _searchFocus.requestFocus());
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _searchFocus.requestFocus());
       }
     });
   }
@@ -192,7 +192,6 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
   List<WorkerModel> get _filtered {
     final filter = _kFilters[_filterIndex];
     return _kWorkers.where((w) {
-      // status/department filter
       final passFilter = switch (filter.type) {
         _FilterType.all => true,
         _FilterType.online => w.isOnline,
@@ -200,8 +199,6 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
         _FilterType.department => w.department == filter.department,
       };
       if (!passFilter) return false;
-
-      // text search
       if (_query.isEmpty) return true;
       final q = _query.toLowerCase();
       return w.fullName.toLowerCase().contains(q) ||
@@ -258,6 +255,7 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
   }
 
   PreferredSizeWidget _buildAppBar(bool isDark) {
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
     final bgColor = isDark ? const Color(0xFF0A0E1F) : Colors.white;
 
     return AppBar(
@@ -274,8 +272,9 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
         transitionBuilder: (child, anim) => FadeTransition(
           opacity: anim,
           child: SlideTransition(
-            position:
-                Tween(begin: const Offset(0.08, 0), end: Offset.zero).animate(anim),
+            position: Tween(
+                    begin: const Offset(0.08, 0), end: Offset.zero)
+                .animate(anim),
             child: child,
           ),
         ),
@@ -286,14 +285,15 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
                 focusNode: _searchFocus,
                 onChanged: (v) => setState(() => _query = v),
                 style: TextStyle(
-                  fontSize: 15,
+                  fontSize: isTablet ? 16 : 15,
                   color: isDark ? Colors.white : const Color(0xFF0F1629),
                 ),
                 decoration: InputDecoration(
                   hintText: 'Search workers...',
                   hintStyle: TextStyle(
-                    color: isDark ? Colors.white38 : Colors.grey.shade400,
-                    fontSize: 15,
+                    color:
+                        isDark ? Colors.white38 : Colors.grey.shade400,
+                    fontSize: isTablet ? 16 : 15,
                   ),
                   border: InputBorder.none,
                   isDense: true,
@@ -306,8 +306,9 @@ class _SearchAddressPageState extends State<SearchAddressPage> {
                 'Team Directory',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  color: isDark ? Colors.white : const Color(0xFF0F1629),
+                  fontSize: isTablet ? 19 : 17,
+                  color:
+                      isDark ? Colors.white : const Color(0xFF0F1629),
                 ),
               ),
       ),
@@ -361,8 +362,9 @@ class _FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
     return Container(
-      height: 52,
+      height: isTablet ? 56 : 52,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0A0E1F) : Colors.white,
         border: Border(
@@ -375,7 +377,8 @@ class _FilterBar extends StatelessWidget {
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        padding: EdgeInsets.symmetric(
+            horizontal: isTablet ? 16 : 14, vertical: 9),
         itemCount: filters.length,
         separatorBuilder: (context, index) => const SizedBox(width: 7),
         itemBuilder: (context, i) {
@@ -388,7 +391,7 @@ class _FilterBar extends StatelessWidget {
             onTap: () => onSelect(i),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: selected
                     ? color.withValues(alpha: isDark ? 0.22 : 0.12)
@@ -411,9 +414,10 @@ class _FilterBar extends StatelessWidget {
                   Text(
                     f.label,
                     style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: isTablet ? 13 : 12.5,
+                      fontWeight: selected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: selected
                           ? color
                           : (isDark
@@ -423,8 +427,8 @@ class _FilterBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 5),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
                       color: selected
                           ? color.withValues(alpha: 0.20)
@@ -436,11 +440,13 @@ class _FilterBar extends StatelessWidget {
                     child: Text(
                       '$count',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: isTablet ? 11 : 10,
                         fontWeight: FontWeight.w700,
                         color: selected
                             ? color
-                            : (isDark ? Colors.white38 : Colors.grey.shade500),
+                            : (isDark
+                                ? Colors.white38
+                                : Colors.grey.shade500),
                       ),
                     ),
                   ),
@@ -456,7 +462,7 @@ class _FilterBar extends StatelessWidget {
 
 // ── Worker list / grid ───────────────────────────────────────────────────────
 
-class _WorkerList extends StatelessWidget {
+class _WorkerList extends StatefulWidget {
   const _WorkerList({
     required this.workers,
     required this.isTablet,
@@ -469,45 +475,69 @@ class _WorkerList extends StatelessWidget {
   final bool isLandscape;
   final Future<void> Function() onRefresh;
 
+  @override
+  State<_WorkerList> createState() => _WorkerListState();
+}
+
+class _WorkerListState extends State<_WorkerList> {
+  // Key to force rebuild + re-trigger animations when list changes
+  Key _listKey = UniqueKey();
+
+  @override
+  void didUpdateWidget(covariant _WorkerList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.workers != widget.workers) {
+      setState(() => _listKey = UniqueKey());
+    }
+  }
+
   int get _crossAxisCount {
-    if (!isTablet) return 1;
-    return isLandscape ? 3 : 2;
+    if (!widget.isTablet) return 1;
+    return widget.isLandscape ? 3 : 2;
   }
 
   @override
   Widget build(BuildContext context) {
     final cols = _crossAxisCount;
-
     return RefreshIndicator(
-      onRefresh: onRefresh,
+      onRefresh: widget.onRefresh,
       color: const Color(0xFF00E5CC),
       child: cols == 1
           ? ListView.builder(
+              key: _listKey,
               padding: const EdgeInsets.only(top: 8, bottom: 24),
               physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: workers.length,
-              itemBuilder: (_, i) => WorkerCard(
-                worker: workers[i],
-                onCall: () {},
-                onMessage: () {},
-                onProfile: () {},
+              itemCount: widget.workers.length,
+              itemBuilder: (_, i) => _SlideFadeIn(
+                index: i,
+                child: WorkerCard(
+                  worker: widget.workers[i],
+                  onCall: () {},
+                  onMessage: () {},
+                  onProfile: () {},
+                ),
               ),
             )
           : GridView.builder(
+              key: _listKey,
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
               physics: const AlwaysScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: cols,
                 crossAxisSpacing: 0,
                 mainAxisSpacing: 0,
-                childAspectRatio: _cardAspectRatio(context, cols),
+                childAspectRatio:
+                    _cardAspectRatio(context, cols),
               ),
-              itemCount: workers.length,
-              itemBuilder: (_, i) => WorkerCard(
-                worker: workers[i],
-                onCall: () {},
-                onMessage: () {},
-                onProfile: () {},
+              itemCount: widget.workers.length,
+              itemBuilder: (_, i) => _SlideFadeIn(
+                index: i,
+                child: WorkerCard(
+                  worker: widget.workers[i],
+                  onCall: () {},
+                  onMessage: () {},
+                  onProfile: () {},
+                ),
               ),
             ),
     );
@@ -516,8 +546,59 @@ class _WorkerList extends StatelessWidget {
   double _cardAspectRatio(BuildContext context, int cols) {
     final screenW = MediaQuery.sizeOf(context).width;
     final cardW = screenW / cols;
-    // Estimated card height: avatar header ~120 + info ~90 + actions ~52 = ~262
     return cardW / 262;
+  }
+}
+
+// ── Staggered slide-fade-in wrapper ─────────────────────────────────────────
+
+class _SlideFadeIn extends StatefulWidget {
+  const _SlideFadeIn({required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  State<_SlideFadeIn> createState() => _SlideFadeInState();
+}
+
+class _SlideFadeInState extends State<_SlideFadeIn>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 460),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween(
+      begin: const Offset(0, 0.14),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+
+    // Stagger by 60ms per card, max 400ms delay
+    final delay = (widget.index * 60).clamp(0, 400);
+    Future.delayed(Duration(milliseconds: delay), () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(position: _slide, child: widget.child),
+    );
   }
 }
 
@@ -530,6 +611,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -537,24 +619,27 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 90,
-              height: 90,
+              width: isTablet ? 100 : 90,
+              height: isTablet ? 100 : 90,
               decoration: BoxDecoration(
-                color: const Color(0xFF00E5CC).withValues(alpha: isDark ? 0.12 : 0.08),
+                color: const Color(0xFF00E5CC)
+                    .withValues(alpha: isDark ? 0.12 : 0.08),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: const Color(0xFF00E5CC).withValues(alpha: 0.28),
+                  color:
+                      const Color(0xFF00E5CC).withValues(alpha: 0.28),
                   width: 1.5,
                 ),
               ),
-              child: const Icon(Icons.person_search_rounded,
-                  size: 42, color: Color(0xFF00E5CC)),
+              child: Icon(Icons.person_search_rounded,
+                  size: isTablet ? 48 : 42,
+                  color: const Color(0xFF00E5CC)),
             ),
             const SizedBox(height: 20),
             Text(
               query.isEmpty ? 'No workers found' : 'No results for "$query"',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: isTablet ? 20 : 18,
                 fontWeight: FontWeight.w700,
                 color: isDark ? Colors.white : const Color(0xFF0F1629),
               ),
@@ -566,7 +651,7 @@ class _EmptyState extends StatelessWidget {
                   : 'Check spelling or try different keywords.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 13.5,
+                fontSize: isTablet ? 14.5 : 13.5,
                 color: isDark ? Colors.white38 : Colors.grey.shade500,
                 height: 1.5,
               ),

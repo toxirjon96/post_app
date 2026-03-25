@@ -292,145 +292,325 @@ class _AppDialogWidgetState extends State<_AppDialogWidget>
     );
   }
 
-  // ── Card ───────────────────────────────────────────────────────────────
+  // ── Card (orientation-aware) ───────────────────────────────────────────
   Widget _buildCard(
       BuildContext context, bool isDark, Color color, Color glow) {
+    final mq = MediaQuery.of(context);
+    final isLandscape = mq.orientation == Orientation.landscape;
     final bg = isDark ? AppColors.darkSurface : Colors.white;
     final border = isDark
         ? Colors.white.withValues(alpha: 0.07)
         : color.withValues(alpha: 0.18);
+    final decoration = BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(28),
+      border: Border.all(color: border, width: 1.5),
+      boxShadow: [
+        BoxShadow(
+          color: glow.withValues(alpha: 0.22),
+          blurRadius: 56,
+          spreadRadius: -6,
+          offset: const Offset(0, 16),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: isDark ? 0.58 : 0.12),
+          blurRadius: 40,
+          offset: const Offset(0, 18),
+        ),
+      ],
+    );
 
+    if (isLandscape) {
+      // ── Landscape: two-column layout (iOS iPad / Slack / Material wide) ──
+      return Container(
+        margin: EdgeInsets.symmetric(
+          horizontal: math.max(22.0, mq.padding.left + 12),
+          vertical: 14,
+        ),
+        constraints: BoxConstraints(
+          maxWidth: 600,
+          maxHeight: mq.size.height * 0.90,
+        ),
+        decoration: decoration,
+        child: _buildLandscapeLayout(context, isDark, color, glow),
+      );
+    }
+
+    // ── Portrait: single-column layout (unchanged) ──────────────────────
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 22),
       constraints: const BoxConstraints(maxWidth: 400),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: border, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: glow.withValues(alpha: 0.22),
-            blurRadius: 56,
-            spreadRadius: -6,
-            offset: const Offset(0, 16),
+      decoration: decoration,
+      child: _buildPortraitLayout(context, isDark, color, glow),
+    );
+  }
+
+  // ── Portrait layout (original single-column) ───────────────────────────
+  Widget _buildPortraitLayout(
+      BuildContext context, bool isDark, Color color, Color glow) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildHeader(isDark, color),
+        _buildIconSection(color, glow, isDark, compact: false),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+          child: Column(
+            children: [
+              Text(
+                widget.title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.3,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                widget.message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.58)
+                          : const Color(0xFF4A5270),
+                      height: 1.65,
+                    ),
+              ),
+            ],
           ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.58 : 0.12),
-            blurRadius: 40,
-            offset: const Offset(0, 18),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildHeader(isDark, color),
-          _buildIconSection(color, glow, isDark),
+        ),
+        if (widget.images?.isNotEmpty == true) ...[
+          const SizedBox(height: 18),
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
-            child: Column(
-              children: [
-                Text(
-                  widget.title,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        height: 1.3,
-                      ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  widget.message,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.58)
-                            : const Color(0xFF4A5270),
-                        height: 1.65,
-                      ),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _ImageGrid(
+              images: widget.images!.take(4).toList(),
+              color: color,
+              isDark: isDark,
             ),
           ),
-          if (widget.images?.isNotEmpty == true) ...[
-            const SizedBox(height: 18),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _ImageGrid(
-                images: widget.images!.take(4).toList(),
-                color: color,
-                isDark: isDark,
+        ],
+        const SizedBox(height: 24),
+        _buildActions(color, glow, isDark),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  // ── Landscape layout (two-column: icon-left, content-right) ───────────
+  //   Inspired by: iOS iPad alerts · Slack modal · Airbnb wide dialogs
+  Widget _buildLandscapeLayout(
+      BuildContext context, bool isDark, Color color, Color glow) {
+    final subColor = isDark
+        ? Colors.white.withValues(alpha: 0.58)
+        : const Color(0xFF4A5270);
+
+    return SingleChildScrollView(
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Left accent panel: type badge + compact icon ──────────
+            Container(
+              width: 148,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: isDark ? 0.06 : 0.04),
+                borderRadius:
+                    const BorderRadius.horizontal(left: Radius.circular(27)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 18),
+                  // Type badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color:
+                          color.withValues(alpha: isDark ? 0.18 : 0.10),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: color.withValues(alpha: 0.30), width: 1),
+                    ),
+                    child: Text(
+                      _badge(widget.type),
+                      style: TextStyle(
+                        fontSize: 9.0,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                        letterSpacing: 1.6,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
+                  // Compact animated icon
+                  _buildIconSection(color, glow, isDark, compact: true),
+                  const SizedBox(height: 18),
+                ],
+              ),
+            ),
+
+            // ── Right content panel ───────────────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Close button
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 14, 14, 0),
+                      child: GestureDetector(
+                        onTap: _dismiss,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.07)
+                                : Colors.grey.withValues(alpha: 0.10),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: isDark
+                                ? Colors.white54
+                                : Colors.grey.shade500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Title + message (left-aligned in landscape)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                height: 1.3,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.message,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: subColor, height: 1.65),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Images (compact row in landscape)
+                  if (widget.images?.isNotEmpty == true) ...[
+                    const SizedBox(height: 14),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _ImageGrid(
+                        images: widget.images!.take(4).toList(),
+                        color: color,
+                        isDark: isDark,
+                      ),
+                    ),
+                  ],
+
+                  // Action buttons
+                  const SizedBox(height: 18),
+                  _buildActions(color, glow, isDark),
+                  const SizedBox(height: 18),
+                ],
               ),
             ),
           ],
-          const SizedBox(height: 24),
-          _buildActions(color, glow, isDark),
-          const SizedBox(height: 20),
-        ],
+        ),
       ),
     );
   }
 
-  // ── Header row ─────────────────────────────────────────────────────────
+  // ── Header row (portrait) ──────────────────────────────────────────────
   Widget _buildHeader(bool isDark, Color color) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 16, 12, 0),
       child: Row(
         children: [
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.18 : 0.10),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: color.withValues(alpha: 0.30), width: 1),
-            ),
-            child: Text(
-              _badge(widget.type),
-              style: TextStyle(
-                fontSize: 9.0,
-                fontWeight: FontWeight.w800,
-                color: color,
-                letterSpacing: 1.6,
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ),
+          _buildTypeBadge(color, isDark),
           const Spacer(),
-          GestureDetector(
-            onTap: _dismiss,
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.07)
-                    : Colors.grey.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.close_rounded,
-                size: 16,
-                color: isDark ? Colors.white54 : Colors.grey.shade500,
-              ),
-            ),
-          ),
+          _buildCloseButton(isDark),
         ],
       ),
     );
   }
 
+  Widget _buildTypeBadge(Color color, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.18 : 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.30), width: 1),
+      ),
+      child: Text(
+        _badge(widget.type),
+        style: TextStyle(
+          fontSize: 9.0,
+          fontWeight: FontWeight.w800,
+          color: color,
+          letterSpacing: 1.6,
+          fontFamily: 'Poppins',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCloseButton(bool isDark) {
+    return GestureDetector(
+      onTap: _dismiss,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.07)
+              : Colors.grey.withValues(alpha: 0.10),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          Icons.close_rounded,
+          size: 16,
+          color: isDark ? Colors.white54 : Colors.grey.shade500,
+        ),
+      ),
+    );
+  }
+
   // ── Animated icon section ──────────────────────────────────────────────
-  Widget _buildIconSection(Color color, Color glow, bool isDark) {
-    const iconDiameter = 86.0;
-    const canvasSize = 130.0;
+  //   compact=true → smaller icon for landscape left-panel
+  Widget _buildIconSection(Color color, Color glow, bool isDark,
+      {bool compact = false}) {
+    final iconDiameter = compact ? 64.0 : 86.0;
+    final canvasSize = compact ? 90.0 : 130.0;
+    final outerGlow = compact ? 10.0 : 18.0;
+    final outerCanvas = compact ? 30.0 : 50.0;
+    final iconSize = compact ? 26.0 : 36.0;
+    final vPad = compact ? 10.0 : 18.0;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 18),
+      padding: EdgeInsets.symmetric(vertical: vPad),
       child: SizedBox(
-        width: canvasSize + 50,
-        height: canvasSize + 50,
+        width: canvasSize + outerCanvas,
+        height: canvasSize + outerCanvas,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -438,8 +618,8 @@ class _AppDialogWidgetState extends State<_AppDialogWidget>
             Transform.scale(
               scale: _pulseAnim.value,
               child: Container(
-                width: canvasSize + 18,
-                height: canvasSize + 18,
+                width: canvasSize + outerGlow,
+                height: canvasSize + outerGlow,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
@@ -455,8 +635,8 @@ class _AppDialogWidgetState extends State<_AppDialogWidget>
 
             // ── Particle burst ─────────────────────────────────────
             SizedBox(
-              width: canvasSize + 50,
-              height: canvasSize + 50,
+              width: canvasSize + outerCanvas,
+              height: canvasSize + outerCanvas,
               child: CustomPaint(
                 painter: _ParticlePainter(
                   progress: _particleAnim.value,
@@ -508,7 +688,7 @@ class _AppDialogWidgetState extends State<_AppDialogWidget>
                       child: Icon(
                         _icon(widget.type),
                         color: color,
-                        size: 36,
+                        size: iconSize,
                       ),
                     ),
                   ),

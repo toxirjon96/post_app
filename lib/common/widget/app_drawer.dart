@@ -674,7 +674,7 @@ class _ThemeSubItem extends StatelessWidget {
             child: Switch(
               value: isCurrentlyDark,
               onChanged: onChanged,
-              activeColor: const Color(0xFF1B8EF8),
+              activeThumbColor: const Color(0xFF1B8EF8),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),

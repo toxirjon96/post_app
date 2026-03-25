@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -188,12 +189,26 @@ class _NotificationWidgetState extends State<_NotificationWidget>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color  = _color(widget.type);
     final icon   = _icon(widget.type);
-    final topPad = MediaQuery.of(context).padding.top;
+    final mq = MediaQuery.of(context);
+    final topPad = mq.padding.top;
+    final isLandscape = mq.orientation == Orientation.landscape;
+    final screenWidth = mq.size.width;
+
+    // ── Landscape: centered narrow toast (iOS / macOS notification style) ──
+    // ── Portrait: full-width banner with 14px gutters ─────────────────────
+    final double hInset;
+    if (isLandscape) {
+      final targetWidth = math.min(screenWidth * 0.56, 460.0);
+      final sideGuard = math.max(mq.padding.left, mq.padding.right) + 10;
+      hInset = math.max((screenWidth - targetWidth) / 2, sideGuard);
+    } else {
+      hInset = 14;
+    }
 
     return Positioned(
-      top: topPad + 10,
-      left: 14,
-      right: 14,
+      top: topPad + (isLandscape ? 6 : 10),
+      left: hInset,
+      right: hInset,
       child: AnimatedBuilder(
         animation: _ctrl,
         builder: (_, _) => SlideTransition(

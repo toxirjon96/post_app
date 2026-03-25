@@ -99,7 +99,10 @@ class FaceCameraViewState extends State<FaceCameraView> {
       final faces = await _faceDetector.processImage(inputImage);
       if (!mounted) return;
       context.read<FaceIdBloc>().add(
-            FaceIdFaceUpdated(face: faces.isNotEmpty ? faces.first : null),
+            FaceIdFaceUpdated(
+              face: faces.isNotEmpty ? faces.first : null,
+              imageSize: Size(image.width.toDouble(), image.height.toDouble()),
+            ),
           );
     } finally {
       _isProcessing = false;
@@ -174,15 +177,33 @@ class FaceCameraViewState extends State<FaceCameraView> {
           controller.stopImageStream().catchError((_) {});
         }
       },
-      child: SizedBox.expand(
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: controller.value.previewSize!.height,
-            height: controller.value.previewSize!.width,
-            child: CameraPreview(controller),
-          ),
-        ),
+      // OrientationBuilder triggers a rebuild whenever the device rotates,
+      // so the preview dimensions are always correct for the current orientation.
+      child: OrientationBuilder(
+        builder: (context, orientation) {
+          final previewSize = controller.value.previewSize!;
+          // The camera sensor delivers frames in its native landscape layout.
+          // CameraPreview internally rotates them to match the device orientation.
+          //
+          // Portrait  → the displayed frame is taller than wide, so we swap the
+          //             previewSize dimensions to describe the rotated shape.
+          // Landscape → the displayed frame keeps the sensor's native landscape
+          //             aspect ratio; no swap is needed.
+          final isLandscape = orientation == Orientation.landscape;
+          final displayW = isLandscape ? previewSize.width  : previewSize.height;
+          final displayH = isLandscape ? previewSize.height : previewSize.width;
+
+          return SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: displayW,
+                height: displayH,
+                child: CameraPreview(controller),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

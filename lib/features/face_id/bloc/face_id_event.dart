@@ -14,8 +14,10 @@ final class FaceIdPermissionResult extends FaceIdEvent {
 }
 
 final class FaceIdFaceUpdated extends FaceIdEvent {
-  const FaceIdFaceUpdated({this.face}) : super._();
+  const FaceIdFaceUpdated({this.face, this.imageSize = Size.zero}) : super._();
   final Face? face;
+  /// Native camera image dimensions — used for face-position quality checks.
+  final Size imageSize;
 }
 
 final class FaceIdSelfieCapture extends FaceIdEvent {

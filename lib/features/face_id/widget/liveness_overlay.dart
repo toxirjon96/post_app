@@ -64,10 +64,24 @@ class _LivenessOverlayState extends State<LivenessOverlay>
   bool _wasReady = false;
 
   // ── Oval layout constants ──────────────────────────────────────────
-  static const double _ovalWidthFraction = 0.72;
-  static const double _ovalHeightFractionPortrait = 0.46;
-  static const double _ovalHeightFractionLandscape = 0.78;
-  static const double _ovalCenterYPortrait = 0.37;
+  //
+  // Portrait: oval is 72% of screen width and 46% of screen height.
+  //   Example 390×844: 281×389 px → ratio 0.72 (taller than wide ✓)
+  //
+  // Landscape: the screen is now wide and short. If we keep the same fractions
+  //   the oval becomes nearly square or wider-than-tall (e.g. 844×390 at 0.42×0.78
+  //   = 354×304 px → slightly wider → face looks oblong).
+  //   Fix: use narrower width and taller height fractions so the oval stays
+  //   portrait-shaped even in landscape.
+  //   Example 844×390: 0.32×0.90 = 270×351 px → ratio 0.77 (taller ✓)
+  static const double _ovalWidthFraction          = 0.72;
+  static const double _ovalWidthFractionLandscape = 0.32;
+  static const double _ovalHeightFractionPortrait  = 0.46;
+  static const double _ovalHeightFractionLandscape = 0.90;
+  // Center X offset in landscape (fraction of screen width) — shifted left of
+  // the side panel to keep the oval centred in the visible camera area.
+  static const double _ovalCenterXLandscape = 0.38;
+  static const double _ovalCenterYPortrait  = 0.37;
 
   @override
   void initState() {
@@ -1527,15 +1541,20 @@ class _OvalOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // ── Compute oval geometry ────────────────────────────────────────
-    // In landscape: shift oval slightly left to account for side panel
-    final centerX =
-        isLandscape ? size.width * 0.44 : size.width * 0.50;
-    final centerY =
-        isLandscape ? size.height * 0.50 : size.height * _LivenessOverlayState._ovalCenterYPortrait;
+    // In landscape: shift oval left so it sits in the camera-preview area
+    // (the right side is occupied by the task/selfie panel).
+    final centerX = isLandscape
+        ? size.width  * _LivenessOverlayState._ovalCenterXLandscape
+        : size.width  * 0.50;
+    final centerY = isLandscape
+        ? size.height * 0.50
+        : size.height * _LivenessOverlayState._ovalCenterYPortrait;
 
+    // Landscape oval: narrow width + tall height → portrait-shaped oval so the
+    // face is never distorted regardless of device orientation.
     final ovalW = isLandscape
-        ? size.width * 0.42
-        : size.width * _LivenessOverlayState._ovalWidthFraction;
+        ? size.width  * _LivenessOverlayState._ovalWidthFractionLandscape
+        : size.width  * _LivenessOverlayState._ovalWidthFraction;
     final ovalH = isLandscape
         ? size.height * _LivenessOverlayState._ovalHeightFractionLandscape
         : size.height * _LivenessOverlayState._ovalHeightFractionPortrait;
@@ -1724,11 +1743,12 @@ class _OvalOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_OvalOverlayPainter old) =>
-      old.borderColor != borderColor ||
-      old.glowIntensity != glowIntensity ||
-      old.scanProgress != scanProgress ||
-      old.scanColor != scanColor ||
+      old.borderColor        != borderColor        ||
+      old.glowIntensity      != glowIntensity      ||
+      old.scanProgress       != scanProgress       ||
+      old.scanColor          != scanColor          ||
       old.showAlignmentArrows != showAlignmentArrows ||
       old.showAlignmentTarget != showAlignmentTarget ||
-      old.arrowPulse != arrowPulse;
+      old.arrowPulse         != arrowPulse         ||
+      old.isLandscape        != isLandscape;        // orientation change
 }

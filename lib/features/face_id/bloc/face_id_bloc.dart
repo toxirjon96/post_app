@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' show Size;
 
 import 'package:bloc/bloc.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
@@ -19,8 +20,18 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
   }
 
   late List<LivenessTask> _tasks;
+
+  // ── Liveness task frame counter ───────────────────────────────────────────
   static const _requiredFrames = 3;
   int _consecutiveFrames = 0;
+
+  // ── Selfie-ready hysteresis counters ─────────────────────────────────────
+  // Require multiple consecutive "good" frames before enabling the button, and
+  // more "bad" frames before disabling it. This prevents rapid flickering.
+  static const _selfieEnableFrames  = 6;   // frames to enable  button
+  static const _selfieDisableFrames = 14;  // frames to disable button (more lag = less flicker)
+  int _selfieGoodFrames = 0;
+  int _selfieBadFrames  = 0;
 
   static List<LivenessTask> _generateTasks() {
     final pool = List<LivenessTask>.from(LivenessTask.values)..shuffle(Random());
@@ -53,11 +64,25 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
   void _onFaceUpdated(FaceIdFaceUpdated event, Emitter<FaceIdState> emit) {
     final currentState = state;
 
-    // When all tasks done, track face presence for selfie button
+    // ── All tasks done: gate "Take Selfie" behind quality + hysteresis ───────
     if (currentState is FaceIdAllTasksDone) {
-      final facePresent = event.face != null;
-      if (facePresent != currentState.facePresent) {
-        emit(currentState.copyWith(facePresent: facePresent));
+      final faceGood = event.face != null &&
+          _isFaceProperlyPositioned(event.face!, event.imageSize);
+
+      if (faceGood) {
+        _selfieGoodFrames++;
+        _selfieBadFrames = 0;
+        if (!currentState.facePresent &&
+            _selfieGoodFrames >= _selfieEnableFrames) {
+          emit(currentState.copyWith(facePresent: true));
+        }
+      } else {
+        _selfieBadFrames++;
+        _selfieGoodFrames = 0;
+        if (currentState.facePresent &&
+            _selfieBadFrames >= _selfieDisableFrames) {
+          emit(currentState.copyWith(facePresent: false));
+        }
       }
       return;
     }
@@ -99,6 +124,38 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     }
   }
 
+  /// Returns true only when the face is large enough, fully inside the frame,
+  /// and roughly forward-facing — i.e. the user's face properly fills the oval.
+  bool _isFaceProperlyPositioned(Face face, Size imageSize) {
+    final box = face.boundingBox;
+
+    // ── Face must be fully inside the camera frame ────────────────────────
+    if (imageSize != Size.zero) {
+      if (box.left   < 0              ||
+          box.top    < 0              ||
+          box.right  > imageSize.width ||
+          box.bottom > imageSize.height) {
+        return false;
+      }
+      // Face bounding-box width must be ≥ 18% of the smaller image dimension
+      // (guards against detecting a tiny or edge-cropped face).
+      final minDim = min(imageSize.width, imageSize.height);
+      if (box.width < minDim * 0.18) return false;
+    } else {
+      // Fallback when imageSize is unknown: require a minimum pixel width.
+      if (box.width < 90) return false;
+    }
+
+    // ── Head must be roughly forward-facing ───────────────────────────────
+    // Yaw (left/right): allow ±20°
+    // Pitch (up/down):  allow ±20°
+    final yaw   = (face.headEulerAngleY ?? 0).abs();
+    final pitch = (face.headEulerAngleX ?? 0).abs();
+    if (yaw > 20 || pitch > 20) return false;
+
+    return true;
+  }
+
   bool _isTaskSatisfied(Face face, LivenessTask task) {
     return switch (task) {
       LivenessTask.blink =>
@@ -116,6 +173,8 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
 
   void _onRetry(FaceIdRetry event, Emitter<FaceIdState> emit) {
     _consecutiveFrames = 0;
+    _selfieGoodFrames  = 0;
+    _selfieBadFrames   = 0;
     _tasks = _generateTasks();
     emit(FaceIdRunning(
       tasks: _tasks,

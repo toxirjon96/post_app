@@ -10,16 +10,19 @@ import '../../../common/util/responsive.dart';
 import '../bloc/login_bloc.dart';
 
 // ─── Design Tokens ─────────────────────────────────────────────────────────────
-const _kBg      = Color(0xFF07091A);
-const _kSurface = Color(0xFF0D1527);
-const _kBlue    = Color(0xFF1B8EF8);
-const _kTeal    = Color(0xFF00E5CC);
-const _kPurple  = Color(0xFF9B8EF8);
-const _kBorder  = Color(0xFF1B2645);
-const _kTextSec = Color(0xFF7A8CAA);
-const _kError   = Color(0xFFFF4D6A);
-const _kSuccess = Color(0xFF00D68F);
-const _kWarning = Color(0xFFFFB347);
+
+const _kBg       = Color(0xFF060A18); // deepest bg
+const _kField    = Color(0xFF111E36); // input field fill
+const _kBlue     = Color(0xFF2E9BFF); // primary accent
+const _kTeal     = Color(0xFF00DFC4); // secondary accent
+const _kPurple   = Color(0xFF8B7CF8); // tertiary accent
+const _kBorder   = Color(0xFF1C2A44); // idle border
+const _kText     = Color(0xFFECF0FA); // primary text
+const _kTextSec  = Color(0xFF6B7FA0); // secondary text
+const _kHint     = Color(0xFF415070); // hint / placeholder
+const _kError    = Color(0xFFFF4D6A); // error
+const _kSuccess  = Color(0xFF00D18C); // success
+const _kWarning  = Color(0xFFFFAA2E); // warning
 
 // ─── Entry Point ──────────────────────────────────────────────────────────────
 
@@ -69,10 +72,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
-    // ── Entrance (1.2 s staggered) ──
     _entranceCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1100),
     )..forward();
 
     _logoFade = CurvedAnimation(
@@ -80,7 +82,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       curve: const Interval(0.00, 0.50, curve: Curves.easeOut),
     );
     _logoSlide = Tween<Offset>(
-      begin: const Offset(0, -0.30),
+      begin: const Offset(0, -0.28),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entranceCtrl,
@@ -92,7 +94,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       curve: const Interval(0.05, 0.55, curve: Curves.easeOut),
     );
     _panelSlide = Tween<Offset>(
-      begin: const Offset(-0.15, 0),
+      begin: const Offset(-0.12, 0),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entranceCtrl,
@@ -101,14 +103,14 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
     _formFade = CurvedAnimation(
       parent: _entranceCtrl,
-      curve: const Interval(0.25, 0.80, curve: Curves.easeOut),
+      curve: const Interval(0.28, 0.82, curve: Curves.easeOut),
     );
     _formSlide = Tween<Offset>(
-      begin: const Offset(0, 0.25),
+      begin: const Offset(0, 0.22),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _entranceCtrl,
-      curve: const Interval(0.25, 0.80, curve: Curves.easeOutCubic),
+      curve: const Interval(0.28, 0.82, curve: Curves.easeOutCubic),
     ));
 
     _socialFade = CurvedAnimation(
@@ -116,10 +118,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       curve: const Interval(0.55, 1.00, curve: Curves.easeOut),
     );
 
-    // ── Ambient pulse (4 s loop) ──
     _pulseCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(seconds: 5),
     )..repeat(reverse: true);
 
     _pulse1 = CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut);
@@ -147,8 +148,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     _pulseCtrl.dispose();
     super.dispose();
   }
-
-  // ─── Helpers ────────────────────────────────────────────────────────────────
 
   int _computeStrength(String pw) {
     if (pw.isEmpty) return 0;
@@ -185,7 +184,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     ));
   }
 
-  // ─── Root Build ─────────────────────────────────────────────────────────────
+  // ─── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -196,7 +195,8 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           if (state is LoginSuccess) {
             context.go('/face-id');
           } else if (state is LoginFailure) {
-            ScaffoldMessenger.of(context).showSnackBar(_errorSnack(state.message));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(_buildErrorSnack(state.message));
           }
         },
         child: Scaffold(
@@ -205,14 +205,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           body: Stack(
             fit: StackFit.expand,
             children: [
-              // Layer 1 — grid
-              const CustomPaint(painter: _DuonetMapPainter()),
-              // Layer 2 — animated ambient glows
+              const CustomPaint(painter: _GridPainter()),
               AnimatedBuilder(
                 animation: _pulseCtrl,
-                builder: (context, child) => _AmbientGlow(p1: _pulse1.value, p2: _pulse2.value),
+                builder: (ctx, child) =>
+                    _GlowLayer(p1: _pulse1.value, p2: _pulse2.value),
               ),
-              // Layer 3 — content
               SafeArea(
                 child: context.isLandscape
                     ? _buildLandscape(context)
@@ -226,7 +224,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  PORTRAIT LAYOUT
+  //  PORTRAIT
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildPortrait(BuildContext context) {
@@ -244,13 +242,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             maxWidth: isTablet ? 560.0 : double.infinity,
           ),
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: isTablet ? 48.0 : 24.0),
+            padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 48.0 : 22.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(height: isTablet ? 64.0 : 52.0),
-
-                // ── Logo block ──
+                SizedBox(height: isTablet ? 64.0 : 48.0),
                 SlideTransition(
                   position: _logoSlide,
                   child: FadeTransition(
@@ -258,9 +255,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                     child: _LogoBlock(isTablet: isTablet),
                   ),
                 ),
-                SizedBox(height: isTablet ? 44.0 : 32.0),
-
-                // ── Form card ──
+                SizedBox(height: isTablet ? 44.0 : 30.0),
                 SlideTransition(
                   position: _formSlide,
                   child: FadeTransition(
@@ -268,18 +263,15 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                     child: _buildFormCard(context, isTablet: isTablet),
                   ),
                 ),
-                const SizedBox(height: 20),
-
-                // ── Social section ──
+                const SizedBox(height: 18),
                 FadeTransition(
                   opacity: _socialFade,
-                  child: _buildSocialSection(),
+                  child: _SocialSection(),
                 ),
-                const SizedBox(height: 28),
-
-                // ── Footer ──
-                FadeTransition(opacity: _socialFade, child: _buildFooter()),
                 const SizedBox(height: 24),
+                FadeTransition(
+                    opacity: _socialFade, child: _buildFooter()),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -289,67 +281,243 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  //  LANDSCAPE LAYOUT  — Slack-style split panel
+  //  LANDSCAPE  — visual identity panel | form panel
+  //  Inspired by: Linear, Vercel, Stripe, Airbnb, Slack
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildLandscape(BuildContext context) {
     final isTablet = context.isTablet;
+    final w        = context.screenWidth;
+
+    // Proportions: phone 40/60, tablet 42/58
+    final leftW = w * (isTablet ? 0.42 : 0.40);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Left: Brand panel ──────────────────────────────────────────────
-        Expanded(
-          flex: isTablet ? 45 : 40,
-          child: SlideTransition(
-            position: _panelSlide,
-            child: FadeTransition(
-              opacity: _panelFade,
-              child: _BrandPanel(isTablet: isTablet),
+        // ── Left: Visual identity panel ──────────────────────────────────
+        SlideTransition(
+          position: _panelSlide,
+          child: FadeTransition(
+            opacity: _panelFade,
+            child: SizedBox(
+              width: leftW,
+              child: _LandscapeBrandPanel(isTablet: isTablet),
             ),
-          ),
-        ),
-
-        // ── Divider ──
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 28),
-          child: VerticalDivider(
-            color: _kBlue.withOpacity(0.10),
-            width: 1,
-            thickness: 1,
           ),
         ),
 
         // ── Right: Form panel ─────────────────────────────────────────────
         Expanded(
-          flex: isTablet ? 55 : 60,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isTablet ? 40.0 : 28.0,
-              vertical: 16.0,
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                left: BorderSide(color: _kBorder, width: 1),
+              ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SlideTransition(
-                  position: _formSlide,
-                  child: FadeTransition(
-                    opacity: _formFade,
-                    child: _buildFormCard(context, compact: true),
-                  ),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.symmetric(
+                horizontal: isTablet ? 40.0 : 28.0,
+                vertical:   isTablet ? 22.0 : 14.0,
+              ),
+              child: SlideTransition(
+                position: _formSlide,
+                child: FadeTransition(
+                  opacity: _formFade,
+                  child: _buildLandscapeForm(context, isTablet: isTablet),
                 ),
-                const SizedBox(height: 14),
-                FadeTransition(
-                  opacity: _socialFade,
-                  child: _buildSocialSection(compact: true),
-                ),
-                const SizedBox(height: 12),
-                FadeTransition(opacity: _socialFade, child: _buildFooter(compact: true)),
-              ],
+              ),
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  // ── Landscape-optimised form (no card wrapper, tighter rhythm) ────────────
+  Widget _buildLandscapeForm(BuildContext context, {bool isTablet = false}) {
+    final gap = isTablet ? 12.0 : 10.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // ── Heading + live status chip ──
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back',
+                    style: TextStyle(
+                      color: _kText,
+                      fontSize: isTablet ? 22 : 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Sign in to your DUONET account',
+                    style: TextStyle(
+                      color: _kTextSec,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Live status badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: _kSuccess.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: _kSuccess.withOpacity(0.20), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 5, height: 5,
+                    decoration: BoxDecoration(
+                      color: _kSuccess,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                            color: _kSuccess.withOpacity(0.70),
+                            blurRadius: 4),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  const Text(
+                    'Online',
+                    style: TextStyle(
+                      color: _kSuccess,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+
+        SizedBox(height: gap + 4),
+
+        // ── Username ──
+        _DuonetTextField(
+          controller: _usernameCtrl,
+          label: 'Username or Email',
+          icon: Icons.alternate_email_rounded,
+          textInputAction: TextInputAction.next,
+          onSubmitted: (_) => FocusScope.of(context).nextFocus(),
+        ),
+        SizedBox(height: gap),
+
+        // ── Password ──
+        ValueListenableBuilder<bool>(
+          valueListenable: _passwordVisible,
+          builder: (ctx, visible, child) => _DuonetTextField(
+            controller: _passwordCtrl,
+            label: 'Password',
+            icon: Icons.lock_outline_rounded,
+            obscureText: !visible,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _submit(context),
+            suffixIcon: GestureDetector(
+              onTap: () => _passwordVisible.value = !visible,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 14),
+                child: Icon(
+                  visible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: _kHint,
+                  size: 19,
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // ── Strength bar ──
+        const SizedBox(height: 8),
+        ValueListenableBuilder<int>(
+          valueListenable: _pwStrength,
+          builder: (ctx, s, child) => _PasswordStrengthBar(strength: s),
+        ),
+        ValueListenableBuilder<String?>(
+          valueListenable: _pwError,
+          builder: (ctx, err, child) {
+            if (err == null && _passwordCtrl.text.isNotEmpty) {
+              return _hint(Icons.verified_rounded, 'Strong password', _kSuccess);
+            }
+            if (err != null && err.isNotEmpty) {
+              return _hint(Icons.info_outline_rounded, err, _kWarning);
+            }
+            return const SizedBox.shrink();
+          },
+        ),
+
+        SizedBox(height: gap),
+
+        // ── Remember me + Forgot ──
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: _rememberMe,
+              builder: (ctx, val, child) => _AnimCheckbox(
+                value: val,
+                label: 'Remember me',
+                onTap: () => _rememberMe.value = !val,
+              ),
+            ),
+            GestureDetector(
+              onTap: () {},
+              child: const Text(
+                'Forgot password?',
+                style: TextStyle(
+                  color: _kBlue,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        SizedBox(height: gap + 2),
+
+        // ── Sign in button ──
+        BlocBuilder<LoginBloc, LoginState>(
+          builder: (ctx, state) {
+            final loading = state is LoginLoading;
+            return _SignInButton(
+              isLoading: loading,
+              onTap: loading ? null : () => _submit(context),
+            );
+          },
+        ),
+
+        const SizedBox(height: 14),
+        FadeTransition(
+            opacity: _socialFade,
+            child: _SocialSection(compact: true)),
+        const SizedBox(height: 10),
+        FadeTransition(
+            opacity: _socialFade,
+            child: _buildFooter(compact: true)),
       ],
     );
   }
@@ -363,53 +531,62 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     bool isTablet = false,
     bool compact  = false,
   }) {
-    final p = compact ? 18.0 : (isTablet ? 32.0 : 26.0);
+    final p = compact ? 16.0 : (isTablet ? 32.0 : 24.0);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           padding: EdgeInsets.all(p),
           decoration: BoxDecoration(
-            color: _kSurface.withOpacity(0.82),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: _kBlue.withOpacity(0.14), width: 1),
-            boxShadow: [
-              BoxShadow(color: _kBlue.withOpacity(0.04), blurRadius: 40, spreadRadius: 4),
-            ],
+            // Two-stop gradient: top slightly lighter, bottom darker
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF0F1830).withOpacity(0.95),
+                const Color(0xFF090E1E).withOpacity(0.95),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _kBorder, width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Heading ──
               if (!compact) ...[
                 const Text(
                   'Welcome back',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: _kText,
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -0.3,
+                    letterSpacing: -0.4,
+                    height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                const Text(
                   'Sign in to your DUONET account',
-                  style: TextStyle(color: _kTextSec, fontSize: 13),
+                  style: TextStyle(
+                    color: _kTextSec,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
               ] else ...[
                 const Text(
                   'Sign in',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: _kText,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
               ],
 
               // ── Username ──
@@ -420,7 +597,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 textInputAction: TextInputAction.next,
                 onSubmitted: (_) => FocusScope.of(context).nextFocus(),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: compact ? 10 : 12),
 
               // ── Password ──
               ValueListenableBuilder<bool>(
@@ -432,41 +609,44 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   obscureText: !visible,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _submit(context),
-                  suffixIcon: IconButton(
-                    onPressed: () => _passwordVisible.value = !visible,
-                    icon: Icon(
-                      visible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.white30,
-                      size: 20,
+                  suffixIcon: GestureDetector(
+                    onTap: () => _passwordVisible.value = !visible,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 14),
+                      child: Icon(
+                        visible
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: _kHint,
+                        size: 19,
+                      ),
                     ),
                   ),
                 ),
               ),
 
-              // ── Strength bar + hint ──
+              // ── Strength bar ──
               const SizedBox(height: 10),
               ValueListenableBuilder<int>(
                 valueListenable: _pwStrength,
-                builder: (ctx, s, child) => _PasswordStrengthBar(strength: s),
+                builder: (ctx, s, child) =>
+                    _PasswordStrengthBar(strength: s),
               ),
               ValueListenableBuilder<String?>(
                 valueListenable: _pwError,
                 builder: (ctx, err, child) {
                   if (err == null && _passwordCtrl.text.isNotEmpty) {
-                    return _inlineHint(
-                        Icons.verified_outlined, 'Strong password', _kSuccess);
+                    return _hint(Icons.verified_rounded,
+                        'Strong password', _kSuccess);
                   }
                   if (err != null && err.isNotEmpty) {
-                    return _inlineHint(
-                        Icons.info_outline_rounded, err, _kWarning);
+                    return _hint(Icons.info_outline_rounded, err, _kWarning);
                   }
                   return const SizedBox.shrink();
                 },
               ),
 
-              const SizedBox(height: 14),
+              SizedBox(height: compact ? 10 : 14),
 
               // ── Remember me + Forgot password ──
               Row(
@@ -474,19 +654,14 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 children: [
                   ValueListenableBuilder<bool>(
                     valueListenable: _rememberMe,
-                    builder: (ctx, val, child) => _AnimatedCheckbox(
+                    builder: (ctx, val, child) => _AnimCheckbox(
                       value: val,
                       label: 'Remember me',
                       onTap: () => _rememberMe.value = !val,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {},
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
+                  GestureDetector(
+                    onTap: () {},
                     child: const Text(
                       'Forgot password?',
                       style: TextStyle(
@@ -499,11 +674,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                 ],
               ),
 
-              SizedBox(height: compact ? 16 : 20),
+              SizedBox(height: compact ? 14 : 18),
 
               // ── Sign in button ──
               BlocBuilder<LoginBloc, LoginState>(
-                builder: (context, state) {
+                builder: (ctx, state) {
                   final loading = state is LoginLoading;
                   return _SignInButton(
                     isLoading: loading,
@@ -518,64 +693,6 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Social Section ─────────────────────────────────────────────────────────
-
-  Widget _buildSocialSection({bool compact = false}) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Divider(
-                  color: _kBorder.withOpacity(0.55), thickness: 1),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Text(
-                'or continue with',
-                style: TextStyle(
-                    color: _kTextSec, fontSize: 11, letterSpacing: 0.4),
-              ),
-            ),
-            Expanded(
-              child: Divider(
-                  color: _kBorder.withOpacity(0.55), thickness: 1),
-            ),
-          ],
-        ),
-        SizedBox(height: compact ? 12 : 16),
-        Row(
-          children: [
-            Expanded(
-              child: _SocialButton(
-                label: 'Google',
-                icon: const _GoogleBadge(),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _SocialButton(
-                label: 'Apple',
-                icon: const Icon(Icons.apple, color: Colors.white, size: 18),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _SocialButton(
-                label: 'SSO',
-                icon: const Icon(
-                  Icons.business_center_outlined,
-                  color: _kBlue,
-                  size: 16,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   // ─── Footer ─────────────────────────────────────────────────────────────────
 
   Widget _buildFooter({bool compact = false}) {
@@ -584,19 +701,19 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _StatusDot(color: _kTeal, label: 'System Online'),
-            const SizedBox(width: 18),
-            _StatusDot(color: _kBlue, label: 'Secure TLS'),
+            _StatusPill(color: _kTeal, label: 'System Online'),
+            const SizedBox(width: 14),
+            _StatusPill(color: _kBlue, label: 'Secure TLS'),
           ],
         ),
         if (!compact) ...[
-          const SizedBox(height: 12),
-          Text(
+          const SizedBox(height: 10),
+          const Text(
             '© 2025 DUONET — Smart Mobility Platform',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.18),
+              color: Color(0xFF2A3A5A),
               fontSize: 10,
-              letterSpacing: 0.5,
+              letterSpacing: 0.4,
             ),
           ),
         ],
@@ -604,9 +721,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     );
   }
 
-  // ─── Small helpers ──────────────────────────────────────────────────────────
+  // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  Widget _inlineHint(IconData icon, String text, Color color) {
+  Widget _hint(IconData icon, String text, Color color) {
     return Padding(
       padding: const EdgeInsets.only(top: 6, left: 2),
       child: Row(
@@ -615,17 +732,18 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           const SizedBox(width: 6),
           Expanded(
             child: Text(text,
-                style: TextStyle(color: color, fontSize: 11)),
+                style: TextStyle(color: color, fontSize: 11, height: 1.3)),
           ),
         ],
       ),
     );
   }
 
-  SnackBar _errorSnack(String msg) {
+  SnackBar _buildErrorSnack(String msg) {
     return SnackBar(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: const Color(0xFF1E2340),
+      margin: const EdgeInsets.all(16),
+      backgroundColor: const Color(0xFF131D33),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: _kError, width: 1),
@@ -634,7 +752,9 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         children: [
           const Icon(Icons.error_outline_rounded, color: _kError, size: 18),
           const SizedBox(width: 10),
-          Text(msg, style: const TextStyle(color: Colors.white)),
+          Text(msg,
+              style:
+                  const TextStyle(color: _kText, fontSize: 13)),
         ],
       ),
     );
@@ -646,54 +766,59 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _LogoBlock extends StatelessWidget {
-  const _LogoBlock({this.isTablet = false, this.compact = false});
+  const _LogoBlock({
+    this.isTablet = false,
+    this.compact  = false,
+  });
 
   final bool isTablet;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final outerD  = compact ? 64.0 : (isTablet ? 100.0 : 84.0);
-    final innerD  = outerD * 0.77;
-    final nameSz  = compact ? 26.0 : (isTablet ? 42.0 : 36.0);
-    final spacing = compact ? 8.0  : 10.0;
-    final align   = compact ? CrossAxisAlignment.start : CrossAxisAlignment.center;
+    final outerD = compact ? 56.0  : (isTablet ? 96.0 : 80.0);
+    final innerD = outerD * 0.765;
+    final nameSz = compact ? 24.0  : (isTablet ? 40.0 : 34.0);
+    final align  = compact
+        ? CrossAxisAlignment.start
+        : CrossAxisAlignment.center;
 
     return Column(
       crossAxisAlignment: align,
       children: [
-        // ── Icon ──
         SizedBox(
           width: outerD, height: outerD,
           child: Stack(
             alignment: Alignment.center,
             children: [
+              // Outer subtle ring
               Container(
                 width: outerD, height: outerD,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: _kBlue.withOpacity(0.22), width: 1),
+                      color: _kBlue.withOpacity(0.18), width: 1),
                 ),
               ),
+              // Icon circle
               Container(
                 width: innerD, height: innerD,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
-                    colors: [_kBlue, _kTeal],
+                    colors: [Color(0xFF1A7AFF), Color(0xFF00C9A7)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _kBlue.withOpacity(0.50),
-                      blurRadius: 32,
-                      spreadRadius: 2,
+                      color: _kBlue.withOpacity(0.55),
+                      blurRadius: 28,
+                      spreadRadius: 0,
                     ),
                     BoxShadow(
-                      color: _kTeal.withOpacity(0.20),
-                      blurRadius: 52,
+                      color: _kTeal.withOpacity(0.22),
+                      blurRadius: 48,
                       spreadRadius: 4,
                     ),
                   ],
@@ -701,12 +826,17 @@ class _LogoBlock extends StatelessWidget {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    const Icon(Icons.route_rounded,
-                        color: Colors.white, size: 28),
+                    Icon(
+                      Icons.route_rounded,
+                      color: Colors.white,
+                      size: innerD * 0.42,
+                    ),
                     Positioned(
-                      right: 11, top: 11,
+                      right: innerD * 0.16,
+                      top:   innerD * 0.16,
                       child: Container(
-                        width: 9, height: 9,
+                        width: innerD * 0.14,
+                        height: innerD * 0.14,
                         decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -719,14 +849,14 @@ class _LogoBlock extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(height: compact ? 14 : 20),
 
-        // ── Wordmark ──
+        SizedBox(height: compact ? 12 : 18),
+
         ShaderMask(
           shaderCallback: (b) => const LinearGradient(
-            colors: [Colors.white, Color(0xFFB8D4FF)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            colors: [Colors.white, Color(0xFFAAC8FF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ).createShader(b),
           child: Text(
             'DUONET',
@@ -734,31 +864,31 @@ class _LogoBlock extends StatelessWidget {
               color: Colors.white,
               fontSize: nameSz,
               fontWeight: FontWeight.w900,
-              letterSpacing: spacing,
+              letterSpacing: compact ? 7 : 9,
             ),
           ),
         ),
 
         if (!compact) ...[
-          const SizedBox(height: 6),
-          Text(
+          const SizedBox(height: 5),
+          const Text(
             'Smart Mobility Platform',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: _kTextSec,
-              fontSize: isTablet ? 13 : 12,
-              letterSpacing: 0.5,
+              fontSize: 12,
+              letterSpacing: 0.4,
             ),
           ),
-          const SizedBox(height: 16),
-          // ── Feature chips ──
+          const SizedBox(height: 14),
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 8,
+            runSpacing: 6,
             children: const [
-              _Chip(icon: Icons.map_outlined,              label: 'MAPS'),
-              _Chip(icon: Icons.directions_car_outlined,   label: 'FLEET'),
-              _Chip(icon: Icons.groups_outlined,           label: 'WORKFORCE'),
+              _FeatureChip(icon: Icons.map_outlined,             label: 'MAPS'),
+              _FeatureChip(icon: Icons.directions_car_outlined,  label: 'FLEET'),
+              _FeatureChip(icon: Icons.groups_outlined,          label: 'WORKFORCE'),
             ],
           ),
         ],
@@ -768,119 +898,596 @@ class _LogoBlock extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  BRAND PANEL  (landscape left column — Slack-style)
+//  LANDSCAPE BRAND PANEL  — gradient bg + decorative painter + brand content
+//  Design inspiration: Linear, Vercel, Stripe, Airbnb, Slack
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _BrandPanel extends StatelessWidget {
-  const _BrandPanel({this.isTablet = false});
+class _LandscapeBrandPanel extends StatelessWidget {
+  const _LandscapeBrandPanel({this.isTablet = false});
   final bool isTablet;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isTablet ? 40.0 : 28.0,
-        vertical: 24.0,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _LogoBlock(compact: true),
-          const SizedBox(height: 32),
-          _buildFeatureList(),
-          const SizedBox(height: 24),
-          _buildTrustBadge(),
-        ],
-      ),
-    );
-  }
+    final iconSize  = isTablet ? 64.0 : 52.0;
+    final innerSize = iconSize * 0.76;
 
-  Widget _buildFeatureList() {
-    const features = [
-      (_kBlue,   Icons.map_outlined,             'Smart Maps',       'Real-time routing & location intelligence'),
-      (_kTeal,   Icons.directions_car_outlined,   'Fleet Management', 'Track & optimize your entire fleet'),
-      (_kPurple, Icons.groups_outlined,            'Workforce',        'Coordinate teams across locations'),
-    ];
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // ── Layer 1: Gradient background ──
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF0D2050), // rich deep blue top-left
+                Color(0xFF081428), // dark navy bottom-right
+              ],
+            ),
+          ),
+        ),
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: features.map<Widget>((f) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 18),
-          child: Row(
+        // ── Layer 2: Decorative painter (dots, routes, markers) ──
+        const CustomPaint(painter: _BrandPanelPainter()),
+
+        // ── Layer 3: Right-edge gradient fade → seamless blend ──
+        Positioned(
+          right: 0, top: 0, bottom: 0,
+          child: Container(
+            width: 48,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.transparent, Color(0xFF060A18)],
+              ),
+            ),
+          ),
+        ),
+
+        // ── Layer 4: Brand content ──
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            isTablet ? 32 : 24,
+            isTablet ? 24 : 16,
+            isTablet ? 52 : 44, // extra right for the fade
+            isTablet ? 24 : 16,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: f.$1.withOpacity(0.11),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: f.$1.withOpacity(0.22), width: 1),
-                ),
-                child: Icon(f.$2, color: f.$1, size: 16),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // Logo icon with layered glow
+              SizedBox(
+                width: iconSize, height: iconSize,
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    Text(
-                      f.$3,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600),
+                    // Outer glow ring
+                    Container(
+                      width: iconSize, height: iconSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: _kBlue.withOpacity(0.20), width: 1),
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      f.$4,
-                      style: const TextStyle(
-                          color: _kTextSec, fontSize: 10.5),
+                    // Gradient circle
+                    Container(
+                      width: innerSize, height: innerSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1A7AFF), Color(0xFF00C9A7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _kBlue.withOpacity(0.60),
+                            blurRadius: 28,
+                            spreadRadius: 0,
+                          ),
+                          BoxShadow(
+                            color: _kTeal.withOpacity(0.22),
+                            blurRadius: 44,
+                            spreadRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(Icons.route_rounded,
+                              color: Colors.white, size: innerSize * 0.42),
+                          Positioned(
+                            right: innerSize * 0.16,
+                            top: innerSize * 0.15,
+                            child: Container(
+                              width: innerSize * 0.15,
+                              height: innerSize * 0.15,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: isTablet ? 18 : 14),
+
+              // Wordmark with gradient shader
+              ShaderMask(
+                shaderCallback: (b) => const LinearGradient(
+                  colors: [Colors.white, Color(0xFF8BBEFF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(b),
+                child: Text(
+                  'DUONET',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isTablet ? 26 : 21,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: isTablet ? 6 : 5,
+                  ),
+                ),
+              ),
+
+              SizedBox(height: isTablet ? 12 : 8),
+
+              // Two-line bold tagline
+              Text(
+                'Navigate smarter.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isTablet ? 16 : 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              Text(
+                'Work faster.',
+                style: TextStyle(
+                  color: _kBlue,
+                  fontSize: isTablet ? 16 : 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                  letterSpacing: -0.2,
+                ),
+              ),
+
+              SizedBox(height: isTablet ? 22 : 16),
+
+              // Feature pills row
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _BrandPill(
+                      color: _kBlue,
+                      icon: Icons.map_outlined,
+                      label: 'Maps'),
+                  _BrandPill(
+                      color: _kTeal,
+                      icon: Icons.directions_car_outlined,
+                      label: 'Fleet'),
+                  _BrandPill(
+                      color: _kPurple,
+                      icon: Icons.groups_outlined,
+                      label: 'Teams'),
+                ],
+              ),
+
+              if (isTablet) ...[
+                const SizedBox(height: 24),
+                // Feature list (tablet only)
+                _BrandFeatureRow(
+                  color: _kBlue,
+                  icon: Icons.map_outlined,
+                  title: 'Smart Maps',
+                  sub: 'Real-time routing & intelligence',
+                ),
+                const SizedBox(height: 12),
+                _BrandFeatureRow(
+                  color: _kTeal,
+                  icon: Icons.directions_car_outlined,
+                  title: 'Fleet Management',
+                  sub: 'Track & optimize every vehicle',
+                ),
+                const SizedBox(height: 12),
+                _BrandFeatureRow(
+                  color: _kPurple,
+                  icon: Icons.groups_outlined,
+                  title: 'Workforce',
+                  sub: 'Coordinate teams at scale',
+                ),
+              ],
+
+              SizedBox(height: isTablet ? 24 : 18),
+
+              // Trust badge
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _kSuccess.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                  border:
+                      Border.all(color: _kSuccess.withOpacity(0.18), width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 5, height: 5,
+                      decoration: BoxDecoration(
+                        color: _kSuccess,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                              color: _kSuccess.withOpacity(0.70),
+                              blurRadius: 4),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'All systems operational',
+                      style: TextStyle(
+                        color: _kSuccess,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-        );
-      }).toList(),
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildTrustBadge() {
+// ── Brand pill (compact feature tag) ─────────────────────────────────────────
+
+class _BrandPill extends StatelessWidget {
+  const _BrandPill(
+      {required this.color, required this.icon, required this.label});
+  final Color    color;
+  final IconData icon;
+  final String   label;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: _kSuccess.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _kSuccess.withOpacity(0.18), width: 1),
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.22), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 6, height: 6,
-            decoration: BoxDecoration(
-              color: _kSuccess,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                    color: _kSuccess.withOpacity(0.7), blurRadius: 6),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'All systems operational',
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
             style: TextStyle(
-              color: _kSuccess,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Brand feature row (tablet landscape only) ─────────────────────────────────
+
+class _BrandFeatureRow extends StatelessWidget {
+  const _BrandFeatureRow({
+    required this.color,
+    required this.icon,
+    required this.title,
+    required this.sub,
+  });
+  final Color    color;
+  final IconData icon;
+  final String   title;
+  final String   sub;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32, height: 32,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.10),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withOpacity(0.20), width: 1),
+          ),
+          child: Icon(icon, color: color, size: 14),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      color: _kText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 1),
+              Text(sub,
+                  style: const TextStyle(
+                      color: _kTextSec, fontSize: 10.5)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Brand panel background painter ───────────────────────────────────────────
+
+class _BrandPanelPainter extends CustomPainter {
+  const _BrandPanelPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // ── Radial center glow (behind logo area) ──
+    final cx = size.width * 0.40;
+    final cy = size.height * 0.44;
+    final gr = size.width * 0.90;
+    canvas.drawCircle(
+      Offset(cx, cy),
+      gr,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [_kBlue.withOpacity(0.13), Colors.transparent],
+        ).createShader(
+            Rect.fromCircle(center: Offset(cx, cy), radius: gr)),
+    );
+
+    // ── Dot grid (slightly brighter than page bg) ──
+    final dotPaint = Paint()
+      ..color = _kBlue.withOpacity(0.16)
+      ..style = PaintingStyle.fill;
+    const step = 26.0;
+    for (double x = step; x < size.width;  x += step) {
+      for (double y = step; y < size.height; y += step) {
+        canvas.drawCircle(Offset(x, y), 0.85, dotPaint);
+      }
+    }
+
+    // ── Route curves ──
+    final linePaint = Paint()
+      ..strokeWidth = 1.0
+      ..style       = PaintingStyle.stroke
+      ..strokeCap   = StrokeCap.round;
+
+    linePaint.color = _kBlue.withOpacity(0.12);
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, size.height * 0.20)
+        ..cubicTo(
+          size.width * 0.30, size.height * 0.28,
+          size.width * 0.60, size.height * 0.22,
+          size.width,        size.height * 0.08,
+        ),
+      linePaint,
+    );
+
+    linePaint.color = _kTeal.withOpacity(0.09);
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, size.height * 0.78)
+        ..cubicTo(
+          size.width * 0.25, size.height * 0.68,
+          size.width * 0.65, size.height * 0.74,
+          size.width,        size.height * 0.88,
+        ),
+      linePaint,
+    );
+
+    linePaint.color = _kPurple.withOpacity(0.07);
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * 0.10, 0)
+        ..cubicTo(
+          size.width * 0.30, size.height * 0.18,
+          size.width * 0.20, size.height * 0.42,
+          size.width * 0.45, size.height * 0.58,
+        ),
+      linePaint,
+    );
+
+    // ── Map ping markers ──
+    final pins = [
+      (Offset(size.width * 0.14, size.height * 0.18), _kBlue.withOpacity(0.38)),
+      (Offset(size.width * 0.75, size.height * 0.72), _kTeal.withOpacity(0.32)),
+      (Offset(size.width * 0.82, size.height * 0.28), _kBlue.withOpacity(0.26)),
+    ];
+    for (final pin in pins) {
+      // Pulse ring
+      canvas.drawCircle(
+        pin.$1,
+        10,
+        Paint()
+          ..color = pin.$2.withOpacity(0.18)
+          ..style = PaintingStyle.fill,
+      );
+      // Marker triangle
+      canvas.drawPath(
+        Path()
+          ..moveTo(pin.$1.dx,     pin.$1.dy - 7)
+          ..lineTo(pin.$1.dx - 4, pin.$1.dy + 3)
+          ..lineTo(pin.$1.dx + 4, pin.$1.dy + 3)
+          ..close(),
+        Paint()
+          ..color = pin.$2
+          ..style = PaintingStyle.fill,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BrandPanelPainter _) => false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  TEXT FIELD  — fixed: filled, all borders removed, crisp text
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _DuonetTextField extends StatefulWidget {
+  const _DuonetTextField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.obscureText      = false,
+    this.suffixIcon,
+    this.onSubmitted,
+    this.textInputAction,
+  });
+
+  final TextEditingController controller;
+  final String                 label;
+  final IconData               icon;
+  final bool                   obscureText;
+  final Widget?                suffixIcon;
+  final ValueChanged<String>?  onSubmitted;
+  final TextInputAction?       textInputAction;
+
+  @override
+  State<_DuonetTextField> createState() => _DuonetTextFieldState();
+}
+
+class _DuonetTextFieldState extends State<_DuonetTextField>
+    with SingleTickerProviderStateMixin {
+  final _focus = FocusNode();
+  bool _focused = false;
+
+  late final AnimationController _glowCtrl;
+  late final Animation<double>   _glowAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _glowCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 200));
+    _glowAnim = CurvedAnimation(parent: _glowCtrl, curve: Curves.easeOut);
+    _focus.addListener(() {
+      final f = _focus.hasFocus;
+      setState(() => _focused = f);
+      if (f) {
+        _glowCtrl.forward();
+      } else {
+        _glowCtrl.reverse();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _glowCtrl.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _glowAnim,
+      builder: (ctx, child) {
+        return Container(
+          decoration: BoxDecoration(
+            color: _focused
+                ? Color.lerp(_kField, const Color(0xFF162040), _glowAnim.value)
+                : _kField,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Color.lerp(_kBorder, _kBlue, _glowAnim.value)!,
+              width: _focused ? 1.5 : 1.0,
+            ),
+            boxShadow: _focused
+                ? [
+                    BoxShadow(
+                      color: _kBlue.withOpacity(0.18 * _glowAnim.value),
+                      blurRadius: 12,
+                      spreadRadius: 0,
+                    ),
+                  ]
+                : [],
+          ),
+          child: child,
+        );
+      },
+      child: TextField(
+        controller:      widget.controller,
+        focusNode:       _focus,
+        obscureText:     widget.obscureText,
+        onSubmitted:     widget.onSubmitted,
+        textInputAction: widget.textInputAction,
+        style: const TextStyle(
+          color: _kText,           // ← crisp white text, always visible
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.2,
+        ),
+        cursorColor: _kBlue,
+        cursorWidth: 1.5,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          labelStyle: const TextStyle(
+            color: _kHint,
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+          ),
+          floatingLabelStyle: const TextStyle(
+            color: _kBlue,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 14, right: 10),
+            child: Icon(
+              widget.icon,
+              color: _focused ? _kBlue : _kHint,
+              size: 18,
+            ),
+          ),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 0, minHeight: 0),
+          suffixIcon: widget.suffixIcon,
+          // ↓ FIX: every border variant = none + filled transparent
+          filled:               true,
+          fillColor:            Colors.transparent,
+          border:               InputBorder.none,
+          enabledBorder:        InputBorder.none,
+          focusedBorder:        InputBorder.none,
+          disabledBorder:       InputBorder.none,
+          errorBorder:          InputBorder.none,
+          focusedErrorBorder:   InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+              vertical: 16, horizontal: 14),
+        ),
       ),
     );
   }
@@ -892,13 +1499,13 @@ class _BrandPanel extends StatelessWidget {
 
 class _PasswordStrengthBar extends StatelessWidget {
   const _PasswordStrengthBar({required this.strength});
-  final int strength; // 0–4
+  final int strength;
 
-  static const _colors = [
+  static const _segColors = <Color>[
     Colors.transparent,
     _kError,
     _kWarning,
-    Color(0xFFFFE566),
+    Color(0xFFE8D44D),
     _kSuccess,
   ];
   static const _labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
@@ -906,21 +1513,20 @@ class _PasswordStrengthBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (strength == 0) return const SizedBox.shrink();
+    final color = _segColors[strength];
 
-    final color = _colors[strength];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: List.generate(4, (i) => Expanded(
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 280),
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOut,
               height: 3,
-              margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+              margin: EdgeInsets.only(right: i < 3 ? 4.0 : 0.0),
               decoration: BoxDecoration(
-                color: i < strength
-                    ? color
-                    : Colors.white.withOpacity(0.10),
+                color: i < strength ? color : _kBorder,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -942,12 +1548,12 @@ class _PasswordStrengthBar extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  SIGN IN BUTTON
+//  SIGN IN BUTTON  — scale-press + gradient glow
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _SignInButton extends StatefulWidget {
   const _SignInButton({required this.isLoading, this.onTap});
-  final bool isLoading;
+  final bool          isLoading;
   final VoidCallback? onTap;
 
   @override
@@ -956,33 +1562,33 @@ class _SignInButton extends StatefulWidget {
 
 class _SignInButtonState extends State<_SignInButton>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _scaleCtrl;
+  late final AnimationController _pressCtrl;
   late final Animation<double>   _scale;
 
   @override
   void initState() {
     super.initState();
-    _scaleCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 100));
-    _scale = Tween<double>(begin: 1.0, end: 0.97)
-        .animate(CurvedAnimation(parent: _scaleCtrl, curve: Curves.easeIn));
+    _pressCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 90));
+    _scale = Tween(begin: 1.0, end: 0.96).animate(
+        CurvedAnimation(parent: _pressCtrl, curve: Curves.easeIn));
   }
 
   @override
   void dispose() {
-    _scaleCtrl.dispose();
+    _pressCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => _scaleCtrl.forward(),
+      onTapDown: (_) => _pressCtrl.forward(),
       onTapUp: (_) {
-        _scaleCtrl.reverse();
+        _pressCtrl.reverse();
         widget.onTap?.call();
       },
-      onTapCancel: () => _scaleCtrl.reverse(),
+      onTapCancel: () => _pressCtrl.reverse(),
       child: ScaleTransition(
         scale: _scale,
         child: AnimatedContainer(
@@ -991,8 +1597,11 @@ class _SignInButtonState extends State<_SignInButton>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: widget.isLoading
-                  ? [_kBlue.withOpacity(0.45), _kTeal.withOpacity(0.45)]
-                  : const [_kBlue, _kTeal],
+                  ? [
+                      _kBlue.withOpacity(0.40),
+                      _kTeal.withOpacity(0.40),
+                    ]
+                  : const [Color(0xFF1A7AFF), Color(0xFF00C9A7)],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
@@ -1001,92 +1610,63 @@ class _SignInButtonState extends State<_SignInButton>
                 ? []
                 : [
                     BoxShadow(
-                      color: _kBlue.withOpacity(0.42),
-                      blurRadius: 22,
-                      offset: const Offset(0, 7),
+                      color: _kBlue.withOpacity(0.45),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
+                    BoxShadow(
+                      color: _kTeal.withOpacity(0.18),
+                      blurRadius: 32,
+                      offset: const Offset(0, 8),
                     ),
                   ],
           ),
-          child: Center(
-            child: widget.isLoading
-                ? const SizedBox(
-                    width: 22, height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5),
-                  )
-                : const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.login_rounded, color: Colors.white, size: 18),
-                      SizedBox(width: 10),
-                      Text(
-                        'SIGN IN',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 2,
+          child: Stack(
+            children: [
+              // Gloss overlay
+              if (!widget.isLoading)
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withOpacity(0.10),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.5],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  SOCIAL LOGIN BUTTON
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _SocialButton extends StatefulWidget {
-  const _SocialButton({required this.label, required this.icon});
-  final String label;
-  final Widget icon;
-
-  @override
-  State<_SocialButton> createState() => _SocialButtonState();
-}
-
-class _SocialButtonState extends State<_SocialButton> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: () {},
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          height: 44,
-          decoration: BoxDecoration(
-            color: _hovered
-                ? Colors.white.withOpacity(0.09)
-                : Colors.white.withOpacity(0.04),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _hovered
-                  ? _kBlue.withOpacity(0.35)
-                  : _kBorder.withOpacity(0.55),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              widget.icon,
-              const SizedBox(width: 6),
-              Text(
-                widget.label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
                 ),
+              Center(
+                child: widget.isLoading
+                    ? const SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.login_rounded,
+                              color: Colors.white, size: 17),
+                          SizedBox(width: 9),
+                          Text(
+                            'SIGN IN',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2.2,
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),
@@ -1096,15 +1676,114 @@ class _SocialButtonState extends State<_SocialButton> {
   }
 }
 
-// ─── Google Badge ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SOCIAL SECTION
+// ═══════════════════════════════════════════════════════════════════════════════
 
-class _GoogleBadge extends StatelessWidget {
-  const _GoogleBadge();
+class _SocialSection extends StatelessWidget {
+  const _SocialSection({this.compact = false});
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Divider
+        Row(
+          children: [
+            Expanded(child: Divider(color: _kBorder, thickness: 1)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Text(
+                'or continue with',
+                style: TextStyle(
+                    color: _kHint,
+                    fontSize: compact ? 10 : 11,
+                    letterSpacing: 0.3),
+              ),
+            ),
+            Expanded(child: Divider(color: _kBorder, thickness: 1)),
+          ],
+        ),
+        SizedBox(height: compact ? 10 : 14),
+        // Buttons
+        Row(
+          children: [
+            Expanded(child: _SocialBtn(label: 'Google', icon: _GoogleIcon())),
+            const SizedBox(width: 9),
+            Expanded(
+                child: _SocialBtn(
+              label: 'Apple',
+              icon: const Icon(Icons.apple, color: _kText, size: 18),
+            )),
+            const SizedBox(width: 9),
+            Expanded(
+                child: _SocialBtn(
+              label: 'SSO',
+              icon: const Icon(Icons.business_center_outlined,
+                  color: _kBlue, size: 15),
+            )),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SocialBtn extends StatefulWidget {
+  const _SocialBtn({required this.label, required this.icon});
+  final String label;
+  final Widget icon;
+
+  @override
+  State<_SocialBtn> createState() => _SocialBtnState();
+}
+
+class _SocialBtnState extends State<_SocialBtn> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTap: () {},
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 130),
+        height: 42,
+        decoration: BoxDecoration(
+          color: _pressed
+              ? _kBorder.withOpacity(0.8)
+              : _kField,
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(color: _kBorder, width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            widget.icon,
+            const SizedBox(width: 6),
+            Text(
+              widget.label,
+              style: const TextStyle(
+                color: _kText,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GoogleIcon extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: 18, height: 18,
+      width: 17, height: 17,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
         gradient: const LinearGradient(
@@ -1114,75 +1793,68 @@ class _GoogleBadge extends StatelessWidget {
         ),
       ),
       child: const Center(
-        child: Text(
-          'G',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        child: Text('G',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w900)),
       ),
     );
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  ANIMATED CHECKBOX  (Remember me)
+//  ANIMATED CHECKBOX
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _AnimatedCheckbox extends StatelessWidget {
-  const _AnimatedCheckbox({
+class _AnimCheckbox extends StatelessWidget {
+  const _AnimCheckbox({
     required this.value,
     required this.label,
     required this.onTap,
   });
-  final bool   value;
-  final String label;
+  final bool         value;
+  final String       label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      splashColor: _kBlue.withOpacity(0.12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 17, height: 17,
-              decoration: BoxDecoration(
-                color: value ? _kBlue : Colors.transparent,
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(
-                  color: value ? _kBlue : _kBlue.withOpacity(0.35),
-                  width: 1.5,
-                ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 16, height: 16,
+            decoration: BoxDecoration(
+              color: value ? _kBlue : Colors.transparent,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: value ? _kBlue : _kHint,
+                width: 1.5,
               ),
-              child: value
-                  ? const Icon(Icons.check, color: Colors.white, size: 11)
-                  : null,
             ),
-            const SizedBox(width: 8),
-            Text(label,
-                style: const TextStyle(color: _kTextSec, fontSize: 12)),
-          ],
-        ),
+            child: value
+                ? const Icon(Icons.check, color: Colors.white, size: 10)
+                : null,
+          ),
+          const SizedBox(width: 8),
+          Text(label,
+              style: const TextStyle(
+                  color: _kTextSec, fontSize: 12)),
+        ],
       ),
     );
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  STATUS DOT
+//  STATUS PILL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _StatusDot extends StatelessWidget {
-  const _StatusDot({required this.color, required this.label});
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.color, required this.label});
   final Color  color;
   final String label;
 
@@ -1196,16 +1868,18 @@ class _StatusDot extends StatelessWidget {
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: color.withOpacity(0.65), blurRadius: 6)],
+            boxShadow: [
+              BoxShadow(color: color.withOpacity(0.70), blurRadius: 5)
+            ],
           ),
         ),
         const SizedBox(width: 6),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.30),
+          style: const TextStyle(
+            color: Color(0xFF3A4F6A),
             fontSize: 11,
-            letterSpacing: 0.3,
+            letterSpacing: 0.2,
           ),
         ),
       ],
@@ -1214,37 +1888,34 @@ class _StatusDot extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  CHIP  (feature tag)
+//  FEATURE CHIP
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.icon, required this.label});
+class _FeatureChip extends StatelessWidget {
+  const _FeatureChip({required this.icon, required this.label});
   final IconData icon;
   final String   label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: _kBlue.withOpacity(0.09),
+        color: _kBlue.withOpacity(0.08),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _kBlue.withOpacity(0.20), width: 1),
+        border: Border.all(color: _kBlue.withOpacity(0.18), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 10, color: _kTeal),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: _kTeal,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
-            ),
-          ),
+          Text(label,
+              style: const TextStyle(
+                  color: _kTeal,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.9)),
         ],
       ),
     );
@@ -1252,164 +1923,44 @@ class _Chip extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  FOCUSED TEXT FIELD
+//  AMBIENT GLOW  (animated pulsing orbs)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _DuonetTextField extends StatefulWidget {
-  const _DuonetTextField({
-    required this.controller,
-    required this.label,
-    required this.icon,
-    this.obscureText       = false,
-    this.suffixIcon,
-    this.onSubmitted,
-    this.textInputAction,
-  });
-
-  final TextEditingController controller;
-  final String                 label;
-  final IconData               icon;
-  final bool                   obscureText;
-  final Widget?                suffixIcon;
-  final ValueChanged<String>?  onSubmitted;
-  final TextInputAction?       textInputAction;
-
-  @override
-  State<_DuonetTextField> createState() => _DuonetTextFieldState();
-}
-
-class _DuonetTextFieldState extends State<_DuonetTextField> {
-  final _focus = FocusNode();
-  bool _focused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(() => setState(() => _focused = _focus.hasFocus));
-  }
-
-  @override
-  void dispose() {
-    _focus.dispose();
-    super.dispose();
-  }
+class _GlowLayer extends StatelessWidget {
+  const _GlowLayer({required this.p1, required this.p2});
+  final double p1;
+  final double p2;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        color: _focused
-            ? _kBlue.withOpacity(0.07)
-            : Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: _focused
-              ? _kBlue.withOpacity(0.55)
-              : _kBorder.withOpacity(0.60),
-          width: _focused ? 1.5 : 1.0,
-        ),
-        boxShadow: _focused
-            ? [BoxShadow(color: _kBlue.withOpacity(0.10), blurRadius: 10)]
-            : [],
-      ),
-      child: TextField(
-        controller:       widget.controller,
-        focusNode:        _focus,
-        obscureText:      widget.obscureText,
-        onSubmitted:      widget.onSubmitted,
-        textInputAction:  widget.textInputAction,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 15,
-          fontWeight: FontWeight.w400,
-        ),
-        cursorColor: _kBlue,
-        decoration: InputDecoration(
-          labelText:           widget.label,
-          labelStyle:          TextStyle(
-              color: Colors.white.withOpacity(0.35), fontSize: 14),
-          floatingLabelStyle:  const TextStyle(color: _kBlue, fontSize: 12),
-          prefixIcon:          Icon(
-            widget.icon,
-            color: _focused ? _kBlue : _kBlue.withOpacity(0.50),
-            size: 19,
-          ),
-          suffixIcon:          widget.suffixIcon,
-          border:              InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 17, horizontal: 16),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  AMBIENT GLOW  (pulsing radial gradients)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _AmbientGlow extends StatelessWidget {
-  const _AmbientGlow({required this.p1, required this.p2});
-  final double p1; // 0..1
-  final double p2; // 0..1
-
-  @override
-  Widget build(BuildContext context) {
+    final sz = MediaQuery.sizeOf(context);
     return Stack(
       children: [
         // Top-left blue orb
         Positioned(
-          top:  -120 + p1 * 30,
-          left: -90,
-          child: Container(
-            width:  420 + p1 * 50,
-            height: 420 + p1 * 50,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  _kBlue.withOpacity(0.10 + p1 * 0.06),
-                  Colors.transparent,
-                ],
-              ),
-            ),
+          top:  -110 + p1 * 28,
+          left: -80,
+          child: _Orb(
+            size: 400 + p1 * 48,
+            color: _kBlue.withOpacity(0.09 + p1 * 0.06),
           ),
         ),
         // Bottom-right teal orb
         Positioned(
-          bottom: 30 + p2 * 25,
-          right:  -110,
-          child: Container(
-            width:  340,
-            height: 340,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  _kTeal.withOpacity(0.07 + p2 * 0.04),
-                  Colors.transparent,
-                ],
-              ),
-            ),
+          bottom: 20 + p2 * 24,
+          right:  -100,
+          child: _Orb(
+            size: 320,
+            color: _kTeal.withOpacity(0.06 + p2 * 0.04),
           ),
         ),
-        // Top-right purple accent
+        // Mid-right purple accent
         Positioned(
-          top:   MediaQuery.sizeOf(context).height * 0.20,
-          right: -60,
-          child: Container(
-            width:  200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  _kPurple.withOpacity(0.05 + (1 - p1) * 0.03),
-                  Colors.transparent,
-                ],
-              ),
-            ),
+          top:   sz.height * 0.22,
+          right: -55,
+          child: _Orb(
+            size: 180,
+            color: _kPurple.withOpacity(0.04 + (1 - p1) * 0.03),
           ),
         ),
       ],
@@ -1417,87 +1968,111 @@ class _AmbientGlow extends StatelessWidget {
   }
 }
 
+class _Orb extends StatelessWidget {
+  const _Orb({required this.size, required this.color});
+  final double size;
+  final Color  color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+            colors: [color, Colors.transparent]),
+      ),
+    );
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
-//  BACKGROUND GRID + MAP PAINTER
+//  BACKGROUND GRID PAINTER
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _DuonetMapPainter extends CustomPainter {
-  const _DuonetMapPainter();
+class _GridPainter extends CustomPainter {
+  const _GridPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    // ── Fine grid ──
-    final gridPaint = Paint()
-      ..color       = _kBlue.withOpacity(0.048)
-      ..strokeWidth = 0.5;
+    // ── Dot-grid (more modern than lines) ──
+    final dotPaint = Paint()
+      ..color = _kBlue.withOpacity(0.18)
+      ..style = PaintingStyle.fill;
 
-    const step = 38.0;
-    for (double x = 0; x < size.width;  x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    const step = 36.0;
+    for (double x = step; x < size.width;  x += step) {
+      for (double y = step; y < size.height; y += step) {
+        canvas.drawCircle(Offset(x, y), 0.9, dotPaint);
+      }
     }
 
     // ── Route curves ──
-    final routePaint = Paint()
-      ..color       = _kBlue.withOpacity(0.09)
-      ..strokeWidth = 1.5
-      ..style       = PaintingStyle.stroke
-      ..strokeCap   = StrokeCap.round;
+    final strokePaint = Paint()
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
+    strokePaint.color = _kBlue.withOpacity(0.08);
     canvas.drawPath(
       Path()
-        ..moveTo(0, size.height * 0.28)
+        ..moveTo(0, size.height * 0.30)
         ..quadraticBezierTo(
-            size.width * 0.35, size.height * 0.42,
-            size.width,        size.height * 0.18),
-      routePaint,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(size.width * 0.15, size.height)
-        ..quadraticBezierTo(
-            size.width * 0.50, size.height * 0.72,
-            size.width * 0.85, size.height * 0.35),
-      routePaint,
-    );
-    // Subtle tertiary route
-    canvas.drawPath(
-      Path()
-        ..moveTo(size.width * 0.60, 0)
-        ..quadraticBezierTo(
-            size.width * 0.75, size.height * 0.30,
-            size.width,        size.height * 0.55),
-      routePaint..color = _kTeal.withOpacity(0.06),
+            size.width * 0.38, size.height * 0.44,
+            size.width, size.height * 0.20),
+      strokePaint,
     );
 
-    // ── Location dots ──
-    final rng     = math.Random(42);
-    final dotFill = Paint()..style = PaintingStyle.fill;
-    for (int i = 0; i < 8; i++) {
-      final pos   = Offset(rng.nextDouble() * size.width, rng.nextDouble() * size.height);
-      final color = i.isEven ? _kBlue : _kTeal;
-      canvas.drawCircle(pos, 9, Paint()..color = color.withOpacity(0.06));
-      dotFill.color = color.withOpacity(0.40);
-      canvas.drawCircle(pos, 2.5, dotFill);
+    strokePaint.color = _kBlue.withOpacity(0.06);
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * 0.10, size.height)
+        ..quadraticBezierTo(
+            size.width * 0.52, size.height * 0.70,
+            size.width * 0.88, size.height * 0.34),
+      strokePaint,
+    );
+
+    strokePaint.color = _kTeal.withOpacity(0.05);
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width * 0.62, 0)
+        ..quadraticBezierTo(
+            size.width * 0.78, size.height * 0.28,
+            size.width, size.height * 0.52),
+      strokePaint,
+    );
+
+    // ── Location ping dots ──
+    final rng = math.Random(7);
+    for (int i = 0; i < 7; i++) {
+      final pos = Offset(
+          rng.nextDouble() * size.width,
+          rng.nextDouble() * size.height);
+      final c = i.isEven ? _kBlue : _kTeal;
+      canvas.drawCircle(pos, 8,
+          Paint()..color = c.withOpacity(0.05));
+      canvas.drawCircle(pos, 2,
+          Paint()
+            ..color = c.withOpacity(0.35)
+            ..style = PaintingStyle.fill);
     }
 
-    // ── Map markers (triangles) ──
+    // ── Map marker triangles ──
     final markerPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = _kTeal.withOpacity(0.28);
+      ..color = _kTeal.withOpacity(0.22)
+      ..style = PaintingStyle.fill;
 
-    for (final pos in [
-      Offset(size.width * 0.22, size.height * 0.35),
-      Offset(size.width * 0.68, size.height * 0.55),
-      Offset(size.width * 0.48, size.height * 0.78),
+    for (final p in [
+      Offset(size.width * 0.22, size.height * 0.33),
+      Offset(size.width * 0.70, size.height * 0.57),
+      Offset(size.width * 0.46, size.height * 0.80),
     ]) {
       canvas.drawPath(
         Path()
-          ..moveTo(pos.dx,     pos.dy - 6)
-          ..lineTo(pos.dx - 4, pos.dy + 4)
-          ..lineTo(pos.dx + 4, pos.dy + 4)
+          ..moveTo(p.dx,     p.dy - 6)
+          ..lineTo(p.dx - 4, p.dy + 4)
+          ..lineTo(p.dx + 4, p.dy + 4)
           ..close(),
         markerPaint,
       );
@@ -1505,5 +2080,5 @@ class _DuonetMapPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_DuonetMapPainter _) => false;
+  bool shouldRepaint(_GridPainter _) => false;
 }

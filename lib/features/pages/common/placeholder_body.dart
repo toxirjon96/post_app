@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../common/util/responsive.dart';
+
 class PlaceholderBody extends StatelessWidget {
   const PlaceholderBody({
     super.key,

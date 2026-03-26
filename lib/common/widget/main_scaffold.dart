@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../util/responsive.dart';
 import 'app_drawer.dart';
 import 'scaffold_key_scope.dart';
 
@@ -458,7 +459,7 @@ class _ExtendedRail extends StatelessWidget {
         isDark ? Colors.white.withValues(alpha: 0.06) : Colors.grey.shade200;
 
     return Container(
-      width: 200,
+      width: context.isLargeTablet ? 240 : 216,
       decoration: BoxDecoration(
         color: bg,
         border: Border(right: BorderSide(color: borderColor)),
@@ -481,8 +482,8 @@ class _ExtendedRail extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 34,
-                    height: 34,
+                    width: context.dp(34),
+                    height: context.dp(34),
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
                         colors: [Color(0xFF1B8EF8), Color(0xFF00E5CC)],
@@ -491,15 +492,15 @@ class _ExtendedRail extends StatelessWidget {
                       ),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.route_rounded,
-                        color: Colors.white, size: 18),
+                    child: Icon(Icons.route_rounded,
+                        color: Colors.white, size: context.dp(18)),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: context.dp(10)),
                   Text(
                     'DUONET',
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF0F1629),
-                      fontSize: 15,
+                      fontSize: context.sp(15),
                       fontWeight: FontWeight.w900,
                       letterSpacing: 2.5,
                     ),
@@ -515,7 +516,7 @@ class _ExtendedRail extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                 children: [
-                  _railSectionLabel('MAIN', isDark),
+                  _railSectionLabel(context, 'MAIN', isDark),
                   ...List.generate(
                     _primaryEnd,
                     (i) => _ExtendedRailItem(
@@ -526,7 +527,7 @@ class _ExtendedRail extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  _railSectionLabel('MORE', isDark),
+                  _railSectionLabel(context, 'MORE', isDark),
                   ...List.generate(
                     items.length - _primaryEnd,
                     (i) {
@@ -548,13 +549,13 @@ class _ExtendedRail extends StatelessWidget {
     );
   }
 
-  Widget _railSectionLabel(String label, bool isDark) {
+  Widget _railSectionLabel(BuildContext context, String label, bool isDark) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 2),
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 9.5,
+          fontSize: context.sp(9.5),
           fontWeight: FontWeight.w700,
           color: isDark ? Colors.white24 : Colors.grey.shade400,
           letterSpacing: 2.0,
@@ -589,7 +590,8 @@ class _ExtendedRailItem extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 240),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          padding: EdgeInsets.symmetric(
+              horizontal: context.dp(12), vertical: context.dp(11)),
           decoration: BoxDecoration(
             gradient: isSelected
                 ? LinearGradient(
@@ -616,7 +618,7 @@ class _ExtendedRailItem extends StatelessWidget {
                 duration: const Duration(milliseconds: 240),
                 child: Icon(
                   isSelected ? item.activeIcon : item.icon,
-                  size: 20,
+                  size: context.dp(20),
                   color: isSelected
                       ? item.color
                       : isDark
@@ -629,7 +631,7 @@ class _ExtendedRailItem extends StatelessWidget {
                 child: Text(
                   item.label,
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: context.sp(13.5),
                     fontWeight:
                         isSelected ? FontWeight.w700 : FontWeight.w500,
                     color: isSelected
@@ -642,8 +644,8 @@ class _ExtendedRailItem extends StatelessWidget {
               ),
               if (isSelected)
                 Container(
-                  width: 7,
-                  height: 7,
+                  width: context.dp(7),
+                  height: context.dp(7),
                   decoration: BoxDecoration(
                     color: item.color,
                     shape: BoxShape.circle,
@@ -681,7 +683,7 @@ class _RailMenuBtn extends StatelessWidget {
       icon: Icon(
         Icons.menu_rounded,
         color: isDark ? Colors.white54 : Colors.grey.shade600,
-        size: small ? 20 : 22,
+        size: context.dp(small ? 20 : 22),
       ),
       onPressed: onTap,
       tooltip: 'Menu',

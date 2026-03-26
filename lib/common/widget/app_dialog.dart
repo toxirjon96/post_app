@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../constant/theme_config.dart';
+import '../util/responsive.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  PUBLIC TYPES

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../common/util/responsive.dart';
 import '../../../common/widget/scaffold_key_scope.dart';
 import '../../workers/model/worker_model.dart';
 import '../../workers/widget/worker_card.dart';
@@ -364,7 +365,7 @@ class _FilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isTablet = MediaQuery.sizeOf(context).shortestSide >= 600;
     return Container(
-      height: isTablet ? 56 : 52,
+      height: context.dp(isTablet ? 56 : 52),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0A0E1F) : Colors.white,
         border: Border(
@@ -414,7 +415,7 @@ class _FilterBar extends StatelessWidget {
                   Text(
                     f.label,
                     style: TextStyle(
-                      fontSize: isTablet ? 13 : 12.5,
+                      fontSize: context.sp(isTablet ? 13 : 12.5),
                       fontWeight: selected
                           ? FontWeight.w700
                           : FontWeight.w500,
@@ -440,7 +441,7 @@ class _FilterBar extends StatelessWidget {
                     child: Text(
                       '$count',
                       style: TextStyle(
-                        fontSize: isTablet ? 11 : 10,
+                        fontSize: context.sp(isTablet ? 11 : 10),
                         fontWeight: FontWeight.w700,
                         color: selected
                             ? color

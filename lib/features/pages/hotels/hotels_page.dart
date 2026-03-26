@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../common/constant/theme_config.dart';
+import '../../../common/util/responsive.dart';
 import '../../../common/widget/app_dialog.dart';
 import '../../../common/widget/app_notification.dart';
 import '../../../common/widget/scaffold_key_scope.dart';
@@ -359,9 +360,10 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: EdgeInsets.fromLTRB(
+          context.dp(16), context.dp(12), context.dp(16), 0),
       child: Container(
-        height: 50,
+        height: context.dp(50),
         decoration: BoxDecoration(
           color: isDark
               ? AppColors.darkCard
@@ -384,13 +386,13 @@ class _SearchBar extends StatelessWidget {
           children: [
             const SizedBox(width: 14),
             Icon(Icons.search_rounded,
-                size: 20,
+                size: context.dp(20),
                 color: isDark ? Colors.white38 : Colors.grey.shade400),
             const SizedBox(width: 10),
             Text(
               'Search hotels, cities…',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: context.sp(14),
                 color: isDark ? Colors.white30 : Colors.grey.shade400,
                 fontFamily: 'Poppins',
               ),
@@ -431,7 +433,7 @@ class _SectionHeader extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: context.sp(16),
               fontWeight: FontWeight.w800,
               color: isDark ? Colors.white : const Color(0xFF0F1629),
               fontFamily: 'Poppins',
@@ -510,7 +512,7 @@ class _DemoButtonState extends State<_DemoButton>
         builder: (_, _) => Transform.scale(
           scale: _scale.value,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: EdgeInsets.symmetric(vertical: context.dp(12)),
             decoration: BoxDecoration(
               color: widget.color.withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(14),
@@ -522,12 +524,12 @@ class _DemoButtonState extends State<_DemoButton>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(widget.icon, color: widget.color, size: 20),
-                const SizedBox(height: 5),
+                Icon(widget.icon, color: widget.color, size: context.dp(20)),
+                SizedBox(height: context.dp(5)),
                 Text(
                   widget.label,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: context.sp(10.5),
                     fontWeight: FontWeight.w700,
                     color: widget.color,
                     fontFamily: 'Poppins',

@@ -196,7 +196,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             context.go('/face-id');
           } else if (state is LoginFailure) {
             ScaffoldMessenger.of(context)
-                .showSnackBar(_buildErrorSnack(state.message));
+                .showSnackBar(_buildErrorSnack(context, state.message));
           }
         },
         child: Scaffold(
@@ -243,11 +243,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
           ),
           child: Padding(
             padding: EdgeInsets.symmetric(
-                horizontal: isTablet ? 48.0 : 22.0),
+                horizontal: context.dp(isTablet ? 44 : 22)),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(height: isTablet ? 64.0 : 48.0),
+                SizedBox(height: context.dp(isTablet ? 60 : 48)),
                 SlideTransition(
                   position: _logoSlide,
                   child: FadeTransition(
@@ -255,7 +255,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                     child: _LogoBlock(isTablet: isTablet),
                   ),
                 ),
-                SizedBox(height: isTablet ? 44.0 : 30.0),
+                SizedBox(height: context.dp(isTablet ? 40 : 28)),
                 SlideTransition(
                   position: _formSlide,
                   child: FadeTransition(
@@ -286,8 +286,13 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildLandscape(BuildContext context) {
-    final isTablet = context.isTablet;
-    final w        = context.screenWidth;
+    final isTablet     = context.isTablet;
+    final w            = context.screenWidth;
+    // When the keyboard is open on a phone the available height drops to
+    // ~100-160 px, which overflows the brand-panel Column (~260 px).
+    // Collapsing the panel gives the form ScrollView the full width.
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 50;
+    final showPanel    = isTablet || !keyboardOpen;
 
     // Proportions: phone 40/60, tablet 42/58
     final leftW = w * (isTablet ? 0.42 : 0.40);
@@ -296,36 +301,55 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // ── Left: Visual identity panel ──────────────────────────────────
-        SlideTransition(
-          position: _panelSlide,
-          child: FadeTransition(
-            opacity: _panelFade,
-            child: SizedBox(
-              width: leftW,
-              child: _LandscapeBrandPanel(isTablet: isTablet),
-            ),
+        // AnimatedContainer animates the width to 0 when the keyboard opens.
+        // ClipRect prevents any paint overflow during the transition.
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeInOut,
+          width: showPanel ? leftW : 0,
+          child: ClipRect(
+            child: showPanel
+                ? SlideTransition(
+                    position: _panelSlide,
+                    child: FadeTransition(
+                      opacity: _panelFade,
+                      child: _LandscapeBrandPanel(isTablet: isTablet),
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
         ),
 
         // ── Right: Form panel ─────────────────────────────────────────────
         Expanded(
           child: Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                left: BorderSide(color: _kBorder, width: 1),
+                left: showPanel
+                    ? const BorderSide(color: _kBorder, width: 1)
+                    : BorderSide.none,
               ),
             ),
             child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
+              // ClampingScrollPhysics ensures the focused field always
+              // scrolls into view above the keyboard on both platforms.
+              physics: const ClampingScrollPhysics(),
               padding: EdgeInsets.symmetric(
-                horizontal: isTablet ? 40.0 : 28.0,
-                vertical:   isTablet ? 22.0 : 14.0,
+                horizontal: context.dp(isTablet ? 40 : 28),
+                vertical:   context.dp(isTablet ? 22 : 14),
               ),
               child: SlideTransition(
                 position: _formSlide,
                 child: FadeTransition(
                   opacity: _formFade,
-                  child: _buildLandscapeForm(context, isTablet: isTablet),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isTablet ? 520 : double.infinity,
+                      ),
+                      child: _buildLandscapeForm(context, isTablet: isTablet),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -337,7 +361,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
   // ── Landscape-optimised form (no card wrapper, tighter rhythm) ────────────
   Widget _buildLandscapeForm(BuildContext context, {bool isTablet = false}) {
-    final gap = isTablet ? 12.0 : 10.0;
+    final gap = context.dp(isTablet ? 14 : 10);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,18 +379,18 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                     'Welcome back',
                     style: TextStyle(
                       color: _kText,
-                      fontSize: isTablet ? 22 : 18,
+                      fontSize: context.sp(isTablet ? 22 : 18),
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.4,
                       height: 1.2,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
+                  Text(
                     'Sign in to your DUONET account',
                     style: TextStyle(
                       color: _kTextSec,
-                      fontSize: 11.5,
+                      fontSize: context.sp(11.5),
                     ),
                   ),
                 ],
@@ -377,10 +401,10 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(
-                color: _kSuccess.withOpacity(0.08),
+                color: _kSuccess.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                    color: _kSuccess.withOpacity(0.20), width: 1),
+                    color: _kSuccess.withValues(alpha: 0.20), width: 1),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -392,17 +416,17 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                            color: _kSuccess.withOpacity(0.70),
+                            color: _kSuccess.withValues(alpha: 0.70),
                             blurRadius: 4),
                       ],
                     ),
                   ),
                   const SizedBox(width: 5),
-                  const Text(
+                  Text(
                     'Online',
                     style: TextStyle(
                       color: _kSuccess,
-                      fontSize: 10,
+                      fontSize: context.sp(10),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -485,11 +509,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             ),
             GestureDetector(
               onTap: () {},
-              child: const Text(
+              child: Text(
                 'Forgot password?',
                 style: TextStyle(
                   color: _kBlue,
-                  fontSize: 12,
+                  fontSize: context.sp(12),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -531,7 +555,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
     bool isTablet = false,
     bool compact  = false,
   }) {
-    final p = compact ? 16.0 : (isTablet ? 32.0 : 24.0);
+    final p = compact ? context.dp(14) : context.dp(isTablet ? 30 : 22);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -545,8 +569,8 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF0F1830).withOpacity(0.95),
-                const Color(0xFF090E1E).withOpacity(0.95),
+                const Color(0xFF0F1830).withValues(alpha: 0.95),
+                const Color(0xFF090E1E).withValues(alpha: 0.95),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
@@ -557,32 +581,32 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (!compact) ...[
-                const Text(
+                Text(
                   'Welcome back',
                   style: TextStyle(
                     color: _kText,
-                    fontSize: 22,
+                    fontSize: context.sp(22),
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.4,
                     height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Sign in to your DUONET account',
                   style: TextStyle(
                     color: _kTextSec,
-                    fontSize: 13,
+                    fontSize: context.sp(13),
                     height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 22),
               ] else ...[
-                const Text(
+                Text(
                   'Sign in',
                   style: TextStyle(
                     color: _kText,
-                    fontSize: 17,
+                    fontSize: context.sp(17),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -662,11 +686,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
                   ),
                   GestureDetector(
                     onTap: () {},
-                    child: const Text(
+                    child: Text(
                       'Forgot password?',
                       style: TextStyle(
                         color: _kBlue,
-                        fontSize: 12,
+                        fontSize: context.sp(12),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -708,11 +732,11 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
         ),
         if (!compact) ...[
           const SizedBox(height: 10),
-          const Text(
+          Text(
             '© 2025 DUONET — Smart Mobility Platform',
             style: TextStyle(
-              color: Color(0xFF2A3A5A),
-              fontSize: 10,
+              color: const Color(0xFF2A3A5A),
+              fontSize: context.sp(10),
               letterSpacing: 0.4,
             ),
           ),
@@ -725,21 +749,21 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
   Widget _hint(IconData icon, String text, Color color) {
     return Padding(
-      padding: const EdgeInsets.only(top: 6, left: 2),
+      padding: EdgeInsets.only(top: context.dp(6), left: context.dp(2)),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 13),
-          const SizedBox(width: 6),
+          Icon(icon, color: color, size: context.dp(13)),
+          SizedBox(width: context.dp(6)),
           Expanded(
             child: Text(text,
-                style: TextStyle(color: color, fontSize: 11, height: 1.3)),
+                style: TextStyle(color: color, fontSize: context.sp(11), height: 1.3)),
           ),
         ],
       ),
     );
   }
 
-  SnackBar _buildErrorSnack(String msg) {
+  SnackBar _buildErrorSnack(BuildContext context, String msg) {
     return SnackBar(
       behavior: SnackBarBehavior.floating,
       margin: const EdgeInsets.all(16),
@@ -750,11 +774,10 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       ),
       content: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: _kError, size: 18),
-          const SizedBox(width: 10),
+          Icon(Icons.error_outline_rounded, color: _kError, size: context.dp(18)),
+          SizedBox(width: context.dp(10)),
           Text(msg,
-              style:
-                  const TextStyle(color: _kText, fontSize: 13)),
+              style: TextStyle(color: _kText, fontSize: context.sp(13))),
         ],
       ),
     );
@@ -766,25 +789,17 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _LogoBlock extends StatelessWidget {
-  const _LogoBlock({
-    this.isTablet = false,
-    this.compact  = false,
-  });
-
+  const _LogoBlock({this.isTablet = false});
   final bool isTablet;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final outerD = compact ? 56.0  : (isTablet ? 96.0 : 80.0);
+    final outerD = context.dp(isTablet ? 92 : 76);
     final innerD = outerD * 0.765;
-    final nameSz = compact ? 24.0  : (isTablet ? 40.0 : 34.0);
-    final align  = compact
-        ? CrossAxisAlignment.start
-        : CrossAxisAlignment.center;
+    final nameSz = context.sp(isTablet ? 38 : 32);
 
     return Column(
-      crossAxisAlignment: align,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
           width: outerD, height: outerD,
@@ -797,7 +812,7 @@ class _LogoBlock extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: _kBlue.withOpacity(0.18), width: 1),
+                      color: _kBlue.withValues(alpha: 0.18), width: 1),
                 ),
               ),
               // Icon circle
@@ -812,12 +827,12 @@ class _LogoBlock extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: _kBlue.withOpacity(0.55),
+                      color: _kBlue.withValues(alpha: 0.55),
                       blurRadius: 28,
                       spreadRadius: 0,
                     ),
                     BoxShadow(
-                      color: _kTeal.withOpacity(0.22),
+                      color: _kTeal.withValues(alpha: 0.22),
                       blurRadius: 48,
                       spreadRadius: 4,
                     ),
@@ -850,7 +865,7 @@ class _LogoBlock extends StatelessWidget {
           ),
         ),
 
-        SizedBox(height: compact ? 12 : 18),
+        SizedBox(height: context.dp(18)),
 
         ShaderMask(
           shaderCallback: (b) => const LinearGradient(
@@ -864,34 +879,32 @@ class _LogoBlock extends StatelessWidget {
               color: Colors.white,
               fontSize: nameSz,
               fontWeight: FontWeight.w900,
-              letterSpacing: compact ? 7 : 9,
+              letterSpacing: 9,
             ),
           ),
         ),
 
-        if (!compact) ...[
-          const SizedBox(height: 5),
-          const Text(
-            'Smart Mobility Platform',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _kTextSec,
-              fontSize: 12,
-              letterSpacing: 0.4,
-            ),
+        const SizedBox(height: 5),
+        Text(
+          'Smart Mobility Platform',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: _kTextSec,
+            fontSize: context.sp(12),
+            letterSpacing: 0.4,
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 6,
-            children: const [
-              _FeatureChip(icon: Icons.map_outlined,             label: 'MAPS'),
-              _FeatureChip(icon: Icons.directions_car_outlined,  label: 'FLEET'),
-              _FeatureChip(icon: Icons.groups_outlined,          label: 'WORKFORCE'),
-            ],
-          ),
-        ],
+        ),
+        SizedBox(height: context.dp(14)),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 6,
+          children: const [
+            _FeatureChip(icon: Icons.map_outlined,             label: 'MAPS'),
+            _FeatureChip(icon: Icons.directions_car_outlined,  label: 'FLEET'),
+            _FeatureChip(icon: Icons.groups_outlined,          label: 'WORKFORCE'),
+          ],
+        ),
       ],
     );
   }
@@ -908,7 +921,7 @@ class _LandscapeBrandPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconSize  = isTablet ? 64.0 : 52.0;
+    final iconSize  = context.dp(isTablet ? 64 : 52);
     final innerSize = iconSize * 0.76;
 
     return Stack(
@@ -970,7 +983,7 @@ class _LandscapeBrandPanel extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                            color: _kBlue.withOpacity(0.20), width: 1),
+                            color: _kBlue.withValues(alpha: 0.20), width: 1),
                       ),
                     ),
                     // Gradient circle
@@ -985,12 +998,12 @@ class _LandscapeBrandPanel extends StatelessWidget {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: _kBlue.withOpacity(0.60),
+                            color: _kBlue.withValues(alpha: 0.60),
                             blurRadius: 28,
                             spreadRadius: 0,
                           ),
                           BoxShadow(
-                            color: _kTeal.withOpacity(0.22),
+                            color: _kTeal.withValues(alpha: 0.22),
                             blurRadius: 44,
                             spreadRadius: 4,
                           ),
@@ -1033,7 +1046,7 @@ class _LandscapeBrandPanel extends StatelessWidget {
                   'DUONET',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: isTablet ? 26 : 21,
+                    fontSize: context.sp(isTablet ? 26 : 21),
                     fontWeight: FontWeight.w900,
                     letterSpacing: isTablet ? 6 : 5,
                   ),
@@ -1047,7 +1060,7 @@ class _LandscapeBrandPanel extends StatelessWidget {
                 'Navigate smarter.',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: isTablet ? 16 : 14,
+                  fontSize: context.sp(isTablet ? 16 : 14),
                   fontWeight: FontWeight.w700,
                   height: 1.35,
                   letterSpacing: -0.2,
@@ -1057,7 +1070,7 @@ class _LandscapeBrandPanel extends StatelessWidget {
                 'Work faster.',
                 style: TextStyle(
                   color: _kBlue,
-                  fontSize: isTablet ? 16 : 14,
+                  fontSize: context.sp(isTablet ? 16 : 14),
                   fontWeight: FontWeight.w700,
                   height: 1.35,
                   letterSpacing: -0.2,
@@ -1118,10 +1131,10 @@ class _LandscapeBrandPanel extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: _kSuccess.withOpacity(0.08),
+                  color: _kSuccess.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
                   border:
-                      Border.all(color: _kSuccess.withOpacity(0.18), width: 1),
+                      Border.all(color: _kSuccess.withValues(alpha: 0.18), width: 1),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1133,7 +1146,7 @@ class _LandscapeBrandPanel extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                              color: _kSuccess.withOpacity(0.70),
+                              color: _kSuccess.withValues(alpha: 0.70),
                               blurRadius: 4),
                         ],
                       ),
@@ -1170,22 +1183,23 @@ class _BrandPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: EdgeInsets.symmetric(
+          horizontal: context.dp(9), vertical: context.dp(5)),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.22), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 5),
+          Icon(icon, size: context.dp(10), color: color),
+          SizedBox(width: context.dp(5)),
           Text(
             label,
             style: TextStyle(
               color: color,
-              fontSize: 10,
+              fontSize: context.sp(10),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1215,28 +1229,28 @@ class _BrandFeatureRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 32, height: 32,
+          width: context.dp(32), height: context.dp(32),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.10),
+            color: color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withOpacity(0.20), width: 1),
+            border: Border.all(color: color.withValues(alpha: 0.20), width: 1),
           ),
-          child: Icon(icon, color: color, size: 14),
+          child: Icon(icon, color: color, size: context.dp(14)),
         ),
-        const SizedBox(width: 11),
+        SizedBox(width: context.dp(11)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: _kText,
-                      fontSize: 12,
+                      fontSize: context.sp(12),
                       fontWeight: FontWeight.w600)),
               const SizedBox(height: 1),
               Text(sub,
-                  style: const TextStyle(
-                      color: _kTextSec, fontSize: 10.5)),
+                  style: TextStyle(
+                      color: _kTextSec, fontSize: context.sp(10.5))),
             ],
           ),
         ),
@@ -1261,14 +1275,14 @@ class _BrandPanelPainter extends CustomPainter {
       gr,
       Paint()
         ..shader = RadialGradient(
-          colors: [_kBlue.withOpacity(0.13), Colors.transparent],
+          colors: [_kBlue.withValues(alpha: 0.13), Colors.transparent],
         ).createShader(
             Rect.fromCircle(center: Offset(cx, cy), radius: gr)),
     );
 
     // ── Dot grid (slightly brighter than page bg) ──
     final dotPaint = Paint()
-      ..color = _kBlue.withOpacity(0.16)
+      ..color = _kBlue.withValues(alpha: 0.16)
       ..style = PaintingStyle.fill;
     const step = 26.0;
     for (double x = step; x < size.width;  x += step) {
@@ -1283,7 +1297,7 @@ class _BrandPanelPainter extends CustomPainter {
       ..style       = PaintingStyle.stroke
       ..strokeCap   = StrokeCap.round;
 
-    linePaint.color = _kBlue.withOpacity(0.12);
+    linePaint.color = _kBlue.withValues(alpha: 0.12);
     canvas.drawPath(
       Path()
         ..moveTo(0, size.height * 0.20)
@@ -1295,7 +1309,7 @@ class _BrandPanelPainter extends CustomPainter {
       linePaint,
     );
 
-    linePaint.color = _kTeal.withOpacity(0.09);
+    linePaint.color = _kTeal.withValues(alpha: 0.09);
     canvas.drawPath(
       Path()
         ..moveTo(0, size.height * 0.78)
@@ -1307,7 +1321,7 @@ class _BrandPanelPainter extends CustomPainter {
       linePaint,
     );
 
-    linePaint.color = _kPurple.withOpacity(0.07);
+    linePaint.color = _kPurple.withValues(alpha: 0.07);
     canvas.drawPath(
       Path()
         ..moveTo(size.width * 0.10, 0)
@@ -1321,9 +1335,9 @@ class _BrandPanelPainter extends CustomPainter {
 
     // ── Map ping markers ──
     final pins = [
-      (Offset(size.width * 0.14, size.height * 0.18), _kBlue.withOpacity(0.38)),
-      (Offset(size.width * 0.75, size.height * 0.72), _kTeal.withOpacity(0.32)),
-      (Offset(size.width * 0.82, size.height * 0.28), _kBlue.withOpacity(0.26)),
+      (Offset(size.width * 0.14, size.height * 0.18), _kBlue.withValues(alpha: 0.38)),
+      (Offset(size.width * 0.75, size.height * 0.72), _kTeal.withValues(alpha: 0.32)),
+      (Offset(size.width * 0.82, size.height * 0.28), _kBlue.withValues(alpha: 0.26)),
     ];
     for (final pin in pins) {
       // Pulse ring
@@ -1331,7 +1345,7 @@ class _BrandPanelPainter extends CustomPainter {
         pin.$1,
         10,
         Paint()
-          ..color = pin.$2.withOpacity(0.18)
+          ..color = pin.$2.withValues(alpha: 0.18)
           ..style = PaintingStyle.fill,
       );
       // Marker triangle
@@ -1429,7 +1443,7 @@ class _DuonetTextFieldState extends State<_DuonetTextField>
             boxShadow: _focused
                 ? [
                     BoxShadow(
-                      color: _kBlue.withOpacity(0.18 * _glowAnim.value),
+                      color: _kBlue.withValues(alpha: 0.18 * _glowAnim.value),
                       blurRadius: 12,
                       spreadRadius: 0,
                     ),
@@ -1445,9 +1459,9 @@ class _DuonetTextFieldState extends State<_DuonetTextField>
         obscureText:     widget.obscureText,
         onSubmitted:     widget.onSubmitted,
         textInputAction: widget.textInputAction,
-        style: const TextStyle(
+        style: TextStyle(
           color: _kText,           // ← crisp white text, always visible
-          fontSize: 15,
+          fontSize: context.sp(15),
           fontWeight: FontWeight.w400,
           letterSpacing: 0.2,
         ),
@@ -1455,14 +1469,14 @@ class _DuonetTextFieldState extends State<_DuonetTextField>
         cursorWidth: 1.5,
         decoration: InputDecoration(
           labelText: widget.label,
-          labelStyle: const TextStyle(
+          labelStyle: TextStyle(
             color: _kHint,
-            fontSize: 14,
+            fontSize: context.sp(14),
             fontWeight: FontWeight.w400,
           ),
-          floatingLabelStyle: const TextStyle(
+          floatingLabelStyle: TextStyle(
             color: _kBlue,
-            fontSize: 12,
+            fontSize: context.sp(12),
             fontWeight: FontWeight.w500,
           ),
           prefixIcon: Padding(
@@ -1470,7 +1484,7 @@ class _DuonetTextFieldState extends State<_DuonetTextField>
             child: Icon(
               widget.icon,
               color: _focused ? _kBlue : _kHint,
-              size: 18,
+              size: context.dp(18),
             ),
           ),
           prefixIconConstraints:
@@ -1485,8 +1499,8 @@ class _DuonetTextFieldState extends State<_DuonetTextField>
           disabledBorder:       InputBorder.none,
           errorBorder:          InputBorder.none,
           focusedErrorBorder:   InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-              vertical: 16, horizontal: 14),
+          contentPadding: EdgeInsets.symmetric(
+              vertical: context.dp(16), horizontal: context.dp(14)),
         ),
       ),
     );
@@ -1537,7 +1551,7 @@ class _PasswordStrengthBar extends StatelessWidget {
           _labels[strength],
           style: TextStyle(
             color: color,
-            fontSize: 10,
+            fontSize: context.sp(10),
             fontWeight: FontWeight.w600,
             letterSpacing: 0.3,
           ),
@@ -1593,13 +1607,13 @@ class _SignInButtonState extends State<_SignInButton>
         scale: _scale,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
-          height: 52,
+          height: context.dp(52),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: widget.isLoading
                   ? [
-                      _kBlue.withOpacity(0.40),
-                      _kTeal.withOpacity(0.40),
+                      _kBlue.withValues(alpha: 0.40),
+                      _kTeal.withValues(alpha: 0.40),
                     ]
                   : const [Color(0xFF1A7AFF), Color(0xFF00C9A7)],
               begin: Alignment.centerLeft,
@@ -1610,12 +1624,12 @@ class _SignInButtonState extends State<_SignInButton>
                 ? []
                 : [
                     BoxShadow(
-                      color: _kBlue.withOpacity(0.45),
+                      color: _kBlue.withValues(alpha: 0.45),
                       blurRadius: 20,
                       offset: const Offset(0, 6),
                     ),
                     BoxShadow(
-                      color: _kTeal.withOpacity(0.18),
+                      color: _kTeal.withValues(alpha: 0.18),
                       blurRadius: 32,
                       offset: const Offset(0, 8),
                     ),
@@ -1634,7 +1648,7 @@ class _SignInButtonState extends State<_SignInButton>
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            Colors.white.withOpacity(0.10),
+                            Colors.white.withValues(alpha: 0.10),
                             Colors.transparent,
                           ],
                           stops: const [0.0, 0.5],
@@ -1650,17 +1664,17 @@ class _SignInButtonState extends State<_SignInButton>
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2),
                       )
-                    : const Row(
+                    : Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.login_rounded,
-                              color: Colors.white, size: 17),
-                          SizedBox(width: 9),
+                              color: Colors.white, size: context.dp(17)),
+                          SizedBox(width: context.dp(9)),
                           Text(
                             'SIGN IN',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 14,
+                              fontSize: context.sp(14),
                               fontWeight: FontWeight.w800,
                               letterSpacing: 2.2,
                             ),
@@ -1698,7 +1712,7 @@ class _SocialSection extends StatelessWidget {
                 'or continue with',
                 style: TextStyle(
                     color: _kHint,
-                    fontSize: compact ? 10 : 11,
+                    fontSize: context.sp(compact ? 10 : 11),
                     letterSpacing: 0.3),
               ),
             ),
@@ -1714,14 +1728,14 @@ class _SocialSection extends StatelessWidget {
             Expanded(
                 child: _SocialBtn(
               label: 'Apple',
-              icon: const Icon(Icons.apple, color: _kText, size: 18),
+              icon: Icon(Icons.apple, color: _kText, size: context.dp(18)),
             )),
             const SizedBox(width: 9),
             Expanded(
                 child: _SocialBtn(
               label: 'SSO',
-              icon: const Icon(Icons.business_center_outlined,
-                  color: _kBlue, size: 15),
+              icon: Icon(Icons.business_center_outlined,
+                  color: _kBlue, size: context.dp(15)),
             )),
           ],
         ),
@@ -1751,10 +1765,10 @@ class _SocialBtnState extends State<_SocialBtn> {
       onTap: () {},
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 130),
-        height: 42,
+        height: context.dp(42),
         decoration: BoxDecoration(
           color: _pressed
-              ? _kBorder.withOpacity(0.8)
+              ? _kBorder.withValues(alpha: 0.8)
               : _kField,
           borderRadius: BorderRadius.circular(11),
           border: Border.all(color: _kBorder, width: 1),
@@ -1766,9 +1780,9 @@ class _SocialBtnState extends State<_SocialBtn> {
             const SizedBox(width: 6),
             Text(
               widget.label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _kText,
-                fontSize: 12,
+                fontSize: context.sp(12),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1783,7 +1797,7 @@ class _GoogleIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 17, height: 17,
+      width: context.dp(17), height: context.dp(17),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
         gradient: const LinearGradient(
@@ -1792,11 +1806,11 @@ class _GoogleIcon extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
       ),
-      child: const Center(
+      child: Center(
         child: Text('G',
             style: TextStyle(
                 color: Colors.white,
-                fontSize: 9,
+                fontSize: context.sp(9),
                 fontWeight: FontWeight.w900)),
       ),
     );
@@ -1826,7 +1840,7 @@ class _AnimCheckbox extends StatelessWidget {
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            width: 16, height: 16,
+            width: context.dp(16), height: context.dp(16),
             decoration: BoxDecoration(
               color: value ? _kBlue : Colors.transparent,
               borderRadius: BorderRadius.circular(4),
@@ -1836,13 +1850,13 @@ class _AnimCheckbox extends StatelessWidget {
               ),
             ),
             child: value
-                ? const Icon(Icons.check, color: Colors.white, size: 10)
+                ? Icon(Icons.check, color: Colors.white, size: context.dp(10))
                 : null,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: context.dp(8)),
           Text(label,
-              style: const TextStyle(
-                  color: _kTextSec, fontSize: 12)),
+              style: TextStyle(
+                  color: _kTextSec, fontSize: context.sp(12))),
         ],
       ),
     );
@@ -1864,21 +1878,21 @@ class _StatusPill extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 6, height: 6,
+          width: context.dp(6), height: context.dp(6),
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
             boxShadow: [
-              BoxShadow(color: color.withOpacity(0.70), blurRadius: 5)
+              BoxShadow(color: color.withValues(alpha: 0.70), blurRadius: 5)
             ],
           ),
         ),
-        const SizedBox(width: 6),
+        SizedBox(width: context.dp(6)),
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF3A4F6A),
-            fontSize: 11,
+          style: TextStyle(
+            color: const Color(0xFF3A4F6A),
+            fontSize: context.sp(11),
             letterSpacing: 0.2,
           ),
         ),
@@ -1899,21 +1913,22 @@ class _FeatureChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: EdgeInsets.symmetric(
+          horizontal: context.dp(9), vertical: context.dp(4)),
       decoration: BoxDecoration(
-        color: _kBlue.withOpacity(0.08),
+        color: _kBlue.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _kBlue.withOpacity(0.18), width: 1),
+        border: Border.all(color: _kBlue.withValues(alpha: 0.18), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: _kTeal),
-          const SizedBox(width: 4),
+          Icon(icon, size: context.dp(10), color: _kTeal),
+          SizedBox(width: context.dp(4)),
           Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   color: _kTeal,
-                  fontSize: 9,
+                  fontSize: context.sp(9),
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.9)),
         ],
@@ -1942,7 +1957,7 @@ class _GlowLayer extends StatelessWidget {
           left: -80,
           child: _Orb(
             size: 400 + p1 * 48,
-            color: _kBlue.withOpacity(0.09 + p1 * 0.06),
+            color: _kBlue.withValues(alpha: 0.09 + p1 * 0.06),
           ),
         ),
         // Bottom-right teal orb
@@ -1951,7 +1966,7 @@ class _GlowLayer extends StatelessWidget {
           right:  -100,
           child: _Orb(
             size: 320,
-            color: _kTeal.withOpacity(0.06 + p2 * 0.04),
+            color: _kTeal.withValues(alpha: 0.06 + p2 * 0.04),
           ),
         ),
         // Mid-right purple accent
@@ -1960,7 +1975,7 @@ class _GlowLayer extends StatelessWidget {
           right: -55,
           child: _Orb(
             size: 180,
-            color: _kPurple.withOpacity(0.04 + (1 - p1) * 0.03),
+            color: _kPurple.withValues(alpha: 0.04 + (1 - p1) * 0.03),
           ),
         ),
       ],
@@ -1997,7 +2012,7 @@ class _GridPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // ── Dot-grid (more modern than lines) ──
     final dotPaint = Paint()
-      ..color = _kBlue.withOpacity(0.18)
+      ..color = _kBlue.withValues(alpha: 0.18)
       ..style = PaintingStyle.fill;
 
     const step = 36.0;
@@ -2013,7 +2028,7 @@ class _GridPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    strokePaint.color = _kBlue.withOpacity(0.08);
+    strokePaint.color = _kBlue.withValues(alpha: 0.08);
     canvas.drawPath(
       Path()
         ..moveTo(0, size.height * 0.30)
@@ -2023,7 +2038,7 @@ class _GridPainter extends CustomPainter {
       strokePaint,
     );
 
-    strokePaint.color = _kBlue.withOpacity(0.06);
+    strokePaint.color = _kBlue.withValues(alpha: 0.06);
     canvas.drawPath(
       Path()
         ..moveTo(size.width * 0.10, size.height)
@@ -2033,7 +2048,7 @@ class _GridPainter extends CustomPainter {
       strokePaint,
     );
 
-    strokePaint.color = _kTeal.withOpacity(0.05);
+    strokePaint.color = _kTeal.withValues(alpha: 0.05);
     canvas.drawPath(
       Path()
         ..moveTo(size.width * 0.62, 0)
@@ -2051,16 +2066,16 @@ class _GridPainter extends CustomPainter {
           rng.nextDouble() * size.height);
       final c = i.isEven ? _kBlue : _kTeal;
       canvas.drawCircle(pos, 8,
-          Paint()..color = c.withOpacity(0.05));
+          Paint()..color = c.withValues(alpha: 0.05));
       canvas.drawCircle(pos, 2,
           Paint()
-            ..color = c.withOpacity(0.35)
+            ..color = c.withValues(alpha: 0.35)
             ..style = PaintingStyle.fill);
     }
 
     // ── Map marker triangles ──
     final markerPaint = Paint()
-      ..color = _kTeal.withOpacity(0.22)
+      ..color = _kTeal.withValues(alpha: 0.22)
       ..style = PaintingStyle.fill;
 
     for (final p in [

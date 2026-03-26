@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../common/util/responsive.dart';
 import '../model/worker_model.dart';
 
 // ── Public widget ──────────────────────────────────────────────────────────
@@ -429,7 +430,8 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: EdgeInsets.symmetric(
+          horizontal: context.dp(7), vertical: context.dp(3)),
       decoration: BoxDecoration(
         color: (isOnline ? const Color(0xFF00D68F) : Colors.grey)
             .withValues(alpha: 0.14),
@@ -444,18 +446,18 @@ class _StatusBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 5,
-            height: 5,
+            width: context.dp(5),
+            height: context.dp(5),
             decoration: BoxDecoration(
               color: isOnline ? const Color(0xFF00D68F) : Colors.grey,
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: context.dp(4)),
           Text(
             isOnline ? 'Online' : 'Offline',
             style: TextStyle(
-              fontSize: 9.5,
+              fontSize: context.sp(9.5),
               fontWeight: FontWeight.w700,
               color: isOnline ? const Color(0xFF00D68F) : Colors.grey,
               letterSpacing: 0.2,
@@ -479,7 +481,8 @@ class _DeptChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(
+          horizontal: context.dp(8), vertical: context.dp(3)),
       decoration: BoxDecoration(
         color: color.withValues(alpha: isDark ? 0.16 : 0.10),
         borderRadius: BorderRadius.circular(8),
@@ -488,7 +491,7 @@ class _DeptChip extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 10,
+          fontSize: context.sp(10),
           fontWeight: FontWeight.w700,
           color: color,
           letterSpacing: 0.2,
@@ -523,22 +526,22 @@ class _InfoRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 22,
-            height: 22,
+            width: context.dp(22),
+            height: context.dp(22),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(icon, size: 12, color: color),
+            child: Icon(icon, size: context.dp(12), color: color),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: context.dp(8)),
           Expanded(
             child: Text(
               text,
               maxLines: maxLines,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: context.sp(12.5),
                 color: isDark ? Colors.white60 : Colors.grey.shade600,
                 height: 1.5,
               ),
@@ -572,22 +575,22 @@ class _WorkHoursRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 22,
-            height: 22,
+            width: context.dp(22),
+            height: context.dp(22),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(Icons.schedule_rounded, size: 12, color: color),
+            child: Icon(Icons.schedule_rounded, size: context.dp(12), color: color),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: context.dp(8)),
           if (checkIn != null) ...[
             Icon(Icons.login_rounded,
                 size: 11, color: const Color(0xFF00D68F)),
             const SizedBox(width: 3),
             Text(checkIn!,
                 style: TextStyle(
-                    fontSize: 12,
+                    fontSize: context.sp(12),
                     color: isDark ? Colors.white60 : Colors.grey.shade600,
                     fontWeight: FontWeight.w600)),
           ],
@@ -605,7 +608,7 @@ class _WorkHoursRow extends StatelessWidget {
             const SizedBox(width: 3),
             Text(checkOut!,
                 style: TextStyle(
-                    fontSize: 12,
+                    fontSize: context.sp(12),
                     color: isDark ? Colors.white60 : Colors.grey.shade600,
                     fontWeight: FontWeight.w600)),
           ],
@@ -637,7 +640,7 @@ class _ActionBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 9),
+        padding: EdgeInsets.symmetric(vertical: context.dp(9)),
         decoration: BoxDecoration(
           color: color.withValues(alpha: isDark ? 0.14 : 0.08),
           borderRadius: BorderRadius.circular(12),
@@ -647,12 +650,12 @@ class _ActionBtn extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 17, color: color),
-            const SizedBox(height: 3),
+            Icon(icon, size: context.dp(17), color: color),
+            SizedBox(height: context.dp(3)),
             Text(
               label,
               style: TextStyle(
-                  fontSize: 10,
+                  fontSize: context.sp(10),
                   color: color,
                   fontWeight: FontWeight.w700),
             ),

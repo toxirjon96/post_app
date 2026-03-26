@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../common/util/responsive.dart';
 import '../model/post_response.dart';
 import 'post_card.dart';
 

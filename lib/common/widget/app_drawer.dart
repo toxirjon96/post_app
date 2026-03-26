@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../provider/theme_provider.dart';
+import '../util/responsive.dart';
 
 // ── Entry widget ───────────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ class _AppDrawerWidgetState extends ConsumerState<AppDrawerWidget> {
                 context.go('/login');
               },
               child: Container(
-                height: 48,
+                height: context.dp(48),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFF4D6A)
                       .withValues(alpha: isDark ? 0.12 : 0.08),
@@ -183,17 +184,17 @@ class _AppDrawerWidgetState extends ConsumerState<AppDrawerWidget> {
                   border: Border.all(
                       color: const Color(0xFFFF4D6A).withValues(alpha: 0.30)),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.logout_rounded,
-                        color: Color(0xFFFF4D6A), size: 18),
-                    SizedBox(width: 8),
+                        color: const Color(0xFFFF4D6A), size: context.dp(18)),
+                    const SizedBox(width: 8),
                     Text(
                       'Sign Out',
                       style: TextStyle(
-                          color: Color(0xFFFF4D6A),
-                          fontSize: 14,
+                          color: const Color(0xFFFF4D6A),
+                          fontSize: context.sp(14),
                           fontWeight: FontWeight.w700),
                     ),
                   ],
@@ -239,8 +240,8 @@ class _ProfileHeader extends StatelessWidget {
               Stack(
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: context.dp(56),
+                    height: context.dp(56),
                     decoration: BoxDecoration(
                       gradient: isDark
                           ? const LinearGradient(
@@ -252,11 +253,11 @@ class _ProfileHeader extends StatelessWidget {
                           color: Colors.white.withValues(alpha: 0.35),
                           width: 2.5),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Text('U1',
                           style: TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: context.sp(20),
                               fontWeight: FontWeight.w800)),
                     ),
                   ),
@@ -264,8 +265,8 @@ class _ProfileHeader extends StatelessWidget {
                     bottom: 1,
                     right: 1,
                     child: Container(
-                      width: 14,
-                      height: 14,
+                      width: context.dp(14),
+                      height: context.dp(14),
                       decoration: BoxDecoration(
                         color: const Color(0xFF00D68F),
                         shape: BoxShape.circle,
@@ -284,32 +285,32 @@ class _ProfileHeader extends StatelessWidget {
               GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
                 child: Container(
-                  width: 32,
-                  height: 32,
+                  width: context.dp(32),
+                  height: context.dp(32),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.10),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(Icons.close_rounded,
-                      color: Colors.white.withValues(alpha: 0.7), size: 18),
+                      color: Colors.white.withValues(alpha: 0.7), size: context.dp(18)),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          const Text('User1',
+          Text('User1',
               style: TextStyle(
                   color: Colors.white,
-                  fontSize: 17,
+                  fontSize: context.sp(17),
                   fontWeight: FontWeight.w800)),
           const SizedBox(height: 2),
           Text('Fleet Manager · DUONET',
               style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75), fontSize: 12.5)),
+                  color: Colors.white.withValues(alpha: 0.75), fontSize: context.sp(12.5))),
           const SizedBox(height: 1),
           Text('user1@duonet.io',
               style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.50), fontSize: 11)),
+                  color: Colors.white.withValues(alpha: 0.50), fontSize: context.sp(11))),
           const SizedBox(height: 12),
           // Status pill
           Container(
@@ -324,16 +325,16 @@ class _ProfileHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 7,
-                  height: 7,
+                  width: context.dp(7),
+                  height: context.dp(7),
                   decoration: const BoxDecoration(
                       color: Color(0xFF00D68F), shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 6),
-                const Text('Available',
+                Text('Available',
                     style: TextStyle(
                         color: Colors.white,
-                        fontSize: 11,
+                        fontSize: context.sp(11),
                         fontWeight: FontWeight.w600)),
               ],
             ),

@@ -458,16 +458,24 @@ class _LivenessOverlayState extends State<LivenessOverlay>
                     ),
                   ),
                 ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 320),
-                  child: _TaskContent(
-                    key: ValueKey(state.currentTask),
-                    task: state.currentTask,
-                    faceDetected: state.faceDetected,
-                    iconSize: 50,
-                    isLandscape: true,
-                    isTablet: isTablet,
-                  ),
+                child: LayoutBuilder(
+                  builder: (_, constraints) {
+                    // Reduce icon when panel height is constrained (keyboard,
+                    // nav bar, split-screen on Samsung Tab S6/S10).
+                    final iconSize =
+                        constraints.maxHeight < 300 ? 36.0 : 50.0;
+                    return AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 320),
+                      child: _TaskContent(
+                        key: ValueKey(state.currentTask),
+                        task: state.currentTask,
+                        faceDetected: state.faceDetected,
+                        iconSize: iconSize,
+                        isLandscape: true,
+                        isTablet: isTablet,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -628,36 +636,45 @@ class _LivenessOverlayState extends State<LivenessOverlay>
                     ),
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _SuccessBadge(isTablet: isTablet, compact: true),
-                    const SizedBox(height: 8),
-                    Text(
-                      'All Done!',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: isTablet ? 16 : 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    _FaceAlignmentFeedback(
-                      facePresent: facePresent,
-                      hintIndex: _hintIndex,
-                      isTablet: isTablet,
-                      compact: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _SelfieButton(
-                      facePresent: facePresent,
-                      readyScale: _readyScale,
-                      shimmerAnim: _shimmerController,
-                      onTap: facePresent ? widget.onSelfiePressed : null,
-                      isTablet: isTablet,
-                      compact: true,
-                    ),
-                  ],
+                // LayoutBuilder adapts spacing to actual available height —
+                // prevents overflow with Samsung nav bar, One UI taskbar,
+                // or split-screen that reduces panel height.
+                child: LayoutBuilder(
+                  builder: (_, constraints) {
+                    final availH     = constraints.maxHeight;
+                    final useCompact = availH < 420;
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _SuccessBadge(isTablet: isTablet, compact: true),
+                        SizedBox(height: useCompact ? 5 : 8),
+                        Text(
+                          'All Done!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isTablet ? 16 : 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: useCompact ? 6 : 10),
+                        _FaceAlignmentFeedback(
+                          facePresent: facePresent,
+                          hintIndex: _hintIndex,
+                          isTablet: isTablet,
+                          compact: true,
+                        ),
+                        SizedBox(height: useCompact ? 8 : 12),
+                        _SelfieButton(
+                          facePresent: facePresent,
+                          readyScale: _readyScale,
+                          shimmerAnim: _shimmerController,
+                          onTap: facePresent ? widget.onSelfiePressed : null,
+                          isTablet: isTablet,
+                          compact: true,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -914,6 +931,8 @@ class _TaskContent extends StatelessWidget {
         Text(
           task.instruction,
           textAlign: TextAlign.center,
+          maxLines: isLandscape ? 2 : 3,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: Colors.white,
             fontSize: isTablet
@@ -929,6 +948,8 @@ class _TaskContent extends StatelessWidget {
         Text(
           task.hint,
           textAlign: TextAlign.center,
+          maxLines: isLandscape ? 2 : 3,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.50),
             fontSize: isTablet
@@ -994,6 +1015,8 @@ class _FaceDetectionBar extends StatelessWidget {
                 : '⊙ Position your face in the oval',
             key: ValueKey(faceDetected),
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: faceDetected
                   ? color
@@ -1085,6 +1108,7 @@ class _FaceAlignmentFeedback extends StatelessWidget {
                 const SizedBox(width: 7),
                 Text(
                   'Face detected — ready!',
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: const Color(0xFF00D68F),
                     fontSize: compact ? 11 : (isTablet ? 13 : 12),
@@ -1159,6 +1183,8 @@ class _FaceAlignmentFeedback extends StatelessWidget {
             child: Text(
               _kAlignmentHints[hintIndex % _kAlignmentHints.length],
               textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.60),
                 fontSize: compact ? 10.5 : (isTablet ? 13 : 12),
@@ -1374,13 +1400,16 @@ class _EnabledSelfieBtn extends StatelessWidget {
           Icon(Icons.camera_alt_rounded,
               color: Colors.white, size: iconSize),
           const SizedBox(width: 10),
-          Text(
-            'Take Selfie',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: fontSize,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
+          Flexible(
+            child: Text(
+              'Take Selfie',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: fontSize,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
             ),
           ),
         ],
@@ -1420,13 +1449,16 @@ class _DisabledSelfieBtn extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.25),
               size: iconSize),
           const SizedBox(width: 10),
-          Text(
-            'Position Face First',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.28),
-              fontSize: fontSize,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
+          Flexible(
+            child: Text(
+              'Position Face First',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.28),
+                fontSize: fontSize,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
         ],

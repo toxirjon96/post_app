@@ -334,6 +334,8 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
               // ClampingScrollPhysics ensures the focused field always
               // scrolls into view above the keyboard on both platforms.
               physics: const ClampingScrollPhysics(),
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.symmetric(
                 horizontal: context.dp(isTablet ? 40 : 28),
                 vertical:   context.dp(isTablet ? 22 : 14),
@@ -361,7 +363,12 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
 
   // ── Landscape-optimised form (no card wrapper, tighter rhythm) ────────────
   Widget _buildLandscapeForm(BuildContext context, {bool isTablet = false}) {
-    final gap = context.dp(isTablet ? 14 : 10);
+    final lh  = context.screenHeight;
+    final gap = lh < 480
+        ? context.dp(7)
+        : lh < 600
+            ? context.dp(isTablet ? 10 : 8)
+            : context.dp(isTablet ? 14 : 10);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -967,203 +974,218 @@ class _LandscapeBrandPanel extends StatelessWidget {
             isTablet ? 52 : 44, // extra right for the fade
             isTablet ? 24 : 16,
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Logo icon with layered glow
-              SizedBox(
-                width: iconSize, height: iconSize,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Outer glow ring
-                    Container(
-                      width: iconSize, height: iconSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: _kBlue.withValues(alpha: 0.20), width: 1),
-                      ),
-                    ),
-                    // Gradient circle
-                    Container(
-                      width: innerSize, height: innerSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF1A7AFF), Color(0xFF00C9A7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _kBlue.withValues(alpha: 0.60),
-                            blurRadius: 28,
-                            spreadRadius: 0,
-                          ),
-                          BoxShadow(
-                            color: _kTeal.withValues(alpha: 0.22),
-                            blurRadius: 44,
-                            spreadRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(Icons.route_rounded,
-                              color: Colors.white, size: innerSize * 0.42),
-                          Positioned(
-                            right: innerSize * 0.16,
-                            top: innerSize * 0.15,
-                            child: Container(
-                              width: innerSize * 0.15,
-                              height: innerSize * 0.15,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: isTablet ? 18 : 14),
-
-              // Wordmark with gradient shader
-              ShaderMask(
-                shaderCallback: (b) => const LinearGradient(
-                  colors: [Colors.white, Color(0xFF8BBEFF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ).createShader(b),
-                child: Text(
-                  'DUONET',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: context.sp(isTablet ? 26 : 21),
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: isTablet ? 6 : 5,
-                  ),
-                ),
-              ),
-
-              SizedBox(height: isTablet ? 12 : 8),
-
-              // Two-line bold tagline
-              Text(
-                'Navigate smarter.',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: context.sp(isTablet ? 16 : 14),
-                  fontWeight: FontWeight.w700,
-                  height: 1.35,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              Text(
-                'Work faster.',
-                style: TextStyle(
-                  color: _kBlue,
-                  fontSize: context.sp(isTablet ? 16 : 14),
-                  fontWeight: FontWeight.w700,
-                  height: 1.35,
-                  letterSpacing: -0.2,
-                ),
-              ),
-
-              SizedBox(height: isTablet ? 22 : 16),
-
-              // Feature pills row
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
+          child: LayoutBuilder(
+            builder: (_, constraints) {
+              // Adapt content to whatever height the panel actually has.
+              // This prevents overflow when the keyboard is open, the device
+              // has a large navigation bar, or the app is in split-screen.
+              final availH        = constraints.maxHeight;
+              final showFeatures  = isTablet && availH >= 580;
+              final useCompact    = availH < 500;
+              final showTaglines  = availH >= 300;
+              final showPills     = availH >= 380;
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _BrandPill(
+                  // Logo icon with layered glow
+                  SizedBox(
+                    width: iconSize, height: iconSize,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Outer glow ring
+                        Container(
+                          width: iconSize, height: iconSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: _kBlue.withValues(alpha: 0.20), width: 1),
+                          ),
+                        ),
+                        // Gradient circle
+                        Container(
+                          width: innerSize, height: innerSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1A7AFF), Color(0xFF00C9A7)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _kBlue.withValues(alpha: 0.60),
+                                blurRadius: 28,
+                                spreadRadius: 0,
+                              ),
+                              BoxShadow(
+                                color: _kTeal.withValues(alpha: 0.22),
+                                blurRadius: 44,
+                                spreadRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Icon(Icons.route_rounded,
+                                  color: Colors.white, size: innerSize * 0.42),
+                              Positioned(
+                                right: innerSize * 0.16,
+                                top: innerSize * 0.15,
+                                child: Container(
+                                  width: innerSize * 0.15,
+                                  height: innerSize * 0.15,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: useCompact ? 8 : (isTablet ? 18 : 14)),
+
+                  // Wordmark with gradient shader
+                  ShaderMask(
+                    shaderCallback: (b) => const LinearGradient(
+                      colors: [Colors.white, Color(0xFF8BBEFF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ).createShader(b),
+                    child: Text(
+                      'DUONET',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: context.sp(isTablet ? 26 : 21),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: isTablet ? 6 : 5,
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: useCompact ? 5 : (isTablet ? 12 : 8)),
+
+                  // Two-line bold tagline — hidden on very short viewports
+                  if (showTaglines) ...[
+                    Text(
+                      'Navigate smarter.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: context.sp(isTablet ? 16 : 14),
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    Text(
+                      'Work faster.',
+                      style: TextStyle(
+                        color: _kBlue,
+                        fontSize: context.sp(isTablet ? 16 : 14),
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    SizedBox(height: useCompact ? 8 : (isTablet ? 22 : 16)),
+                  ],
+
+                  // Feature pills — hidden on very compact viewports
+                  if (showPills)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _BrandPill(
+                            color: _kBlue,
+                            icon: Icons.map_outlined,
+                            label: 'Maps'),
+                        _BrandPill(
+                            color: _kTeal,
+                            icon: Icons.directions_car_outlined,
+                            label: 'Fleet'),
+                        _BrandPill(
+                            color: _kPurple,
+                            icon: Icons.groups_outlined,
+                            label: 'Teams'),
+                      ],
+                    ),
+
+                  // Feature rows — tablet only, and only when enough height
+                  // (keyboard open or split-screen reduces availH below 580)
+                  if (showFeatures) ...[
+                    SizedBox(height: useCompact ? 12 : 16),
+                    _BrandFeatureRow(
                       color: _kBlue,
                       icon: Icons.map_outlined,
-                      label: 'Maps'),
-                  _BrandPill(
+                      title: 'Smart Maps',
+                      sub: 'Real-time routing & intelligence',
+                    ),
+                    const SizedBox(height: 12),
+                    _BrandFeatureRow(
                       color: _kTeal,
                       icon: Icons.directions_car_outlined,
-                      label: 'Fleet'),
-                  _BrandPill(
+                      title: 'Fleet Management',
+                      sub: 'Track & optimize every vehicle',
+                    ),
+                    const SizedBox(height: 12),
+                    _BrandFeatureRow(
                       color: _kPurple,
                       icon: Icons.groups_outlined,
-                      label: 'Teams'),
-                ],
-              ),
-
-              if (isTablet) ...[
-                const SizedBox(height: 24),
-                // Feature list (tablet only)
-                _BrandFeatureRow(
-                  color: _kBlue,
-                  icon: Icons.map_outlined,
-                  title: 'Smart Maps',
-                  sub: 'Real-time routing & intelligence',
-                ),
-                const SizedBox(height: 12),
-                _BrandFeatureRow(
-                  color: _kTeal,
-                  icon: Icons.directions_car_outlined,
-                  title: 'Fleet Management',
-                  sub: 'Track & optimize every vehicle',
-                ),
-                const SizedBox(height: 12),
-                _BrandFeatureRow(
-                  color: _kPurple,
-                  icon: Icons.groups_outlined,
-                  title: 'Workforce',
-                  sub: 'Coordinate teams at scale',
-                ),
-              ],
-
-              SizedBox(height: isTablet ? 24 : 18),
-
-              // Trust badge
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _kSuccess.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border:
-                      Border.all(color: _kSuccess.withValues(alpha: 0.18), width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 5, height: 5,
-                      decoration: BoxDecoration(
-                        color: _kSuccess,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                              color: _kSuccess.withValues(alpha: 0.70),
-                              blurRadius: 4),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'All systems operational',
-                      style: TextStyle(
-                        color: _kSuccess,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      title: 'Workforce',
+                      sub: 'Coordinate teams at scale',
                     ),
                   ],
-                ),
-              ),
-            ],
+
+                  SizedBox(height: useCompact ? 8 : (isTablet ? 24 : 18)),
+
+                  // Trust badge
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _kSuccess.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: _kSuccess.withValues(alpha: 0.18), width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 5, height: 5,
+                          decoration: BoxDecoration(
+                            color: _kSuccess,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                  color: _kSuccess.withValues(alpha: 0.70),
+                                  blurRadius: 4),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'All systems operational',
+                          style: TextStyle(
+                            color: _kSuccess,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ],

@@ -1,5 +1,4 @@
-import 'dart:ui';
-
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -111,10 +110,11 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final idx        = _selectedIndex(context);
-    final isDark     = Theme.of(context).brightness == Brightness.dark;
-    final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
-    final isTablet   = MediaQuery.sizeOf(context).shortestSide >= 600;
+    final idx       = _selectedIndex(context);
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isTablet  = MediaQuery.sizeOf(context).shortestSide >= 600;
 
     return ScaffoldKeyScope(
       scaffoldKey: _scaffoldKey,
@@ -124,19 +124,15 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
-  // ── Portrait phone ─ floating bottom nav ─────────────────────────────────
+  // ── Portrait phone ─ curved bottom nav ───────────────────────────────────
 
   Widget _buildPortraitLayout(
       BuildContext context, int idx, bool isDark) {
     return Scaffold(
       key: _scaffoldKey,
-      // extendBody: true lets the page content scroll behind the frosted nav
-      // so BackdropFilter blurs real content, not just a flat background.
-      extendBody: true,
       drawer: const AppDrawerWidget(),
       body: widget.child,
-      bottomNavigationBar: _BottomNav(
-        items: _navItems,
+      bottomNavigationBar: _CurvedBottomNav(
         selectedIndex: idx,
         isDark: isDark,
         onTap: (i) => context.go(_routes[i]),
@@ -144,7 +140,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
-  // ── Landscape phone / any tablet ─ side rail ──────────────────────────────
+  // ── Landscape phone / tablet ─ side rail ──────────────────────────────────
 
   Widget _buildRailLayout(
       BuildContext context, int idx, bool isDark, bool isTablet) {
@@ -178,280 +174,203 @@ class _MainScaffoldState extends State<MainScaffold> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  PORTRAIT BOTTOM NAV
-//  Design: frosted-glass floating pill with a "magnetic" indicator that
-//  slides between tabs. Two layers animate together:
-//    • Pill highlight  — rounded-rect glow behind the active icon
-//    • Glow bar        — 3 dp bottom bar with neon glow, same color
-//  Both use AnimatedPositioned (x-axis slide) + TweenAnimationBuilder<Color?>
-//  so color cross-fades as you switch tabs.
+//  CURVED BOTTOM NAV  ─  portrait phones
+//
+//  Design strategy with curved_navigation_bar 1.0.6:
+//
+//  • backgroundColor  = scaffold background  →  the bump's surround blends
+//    seamlessly into the page; no visible "gap" between body and bar.
+//  • color            = slightly elevated surface (darkCard / lightSurface)
+//    →  the bar visually "lifts" from the background.
+//  • buttonBackgroundColor  = current tab's accent colour, driven by a
+//    TweenAnimationBuilder<Color?> so the bump cross-fades when you switch
+//    tabs (e.g. electricBlue → amber in ~380 ms).
+//  • Items array is rebuilt on every selectedIndex change:
+//      – active   → filled icon, size 24, white  (shown in the accent bump)
+//      – inactive → outlined icon, size 19, low-opacity  (shown in the bar)
+//    The per-tab Column(Icon + micro-label) gives each item a name even on
+//    a compact 360 dp phone (8 items × ~45 dp each).
+//  • A Container with an upward box-shadow wraps the CurvedNavigationBar to
+//    produce an accent-colored glow above the bar that shifts hue per tab.
+//  • A SafeArea fill at the very bottom extends the bar color to the device
+//    home-indicator region so the bar never looks "cut off".
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({
-    required this.items,
+class _CurvedBottomNav extends StatelessWidget {
+  const _CurvedBottomNav({
     required this.selectedIndex,
     required this.isDark,
     required this.onTap,
   });
 
-  final List<_NavItem> items;
   final int selectedIndex;
   final bool isDark;
   final ValueChanged<int> onTap;
 
-  // Layout constants
-  static const double _navH      = 68.0;
-  static const double _sidePad   = 14.0;
-  static const double _bottomPad = 10.0;
-  static const double _radius    = 26.0;
+  // Bar dimensions – chosen so 8 items × ~45 dp each comfortably fits
+  // icon (18 dp) + 2 dp gap + label (7 dp) inside a 62 dp tall bar.
+  static const double _barHeight    = 62.0;
+  static const double _iconPad      = 10.0; // bump circle inner padding
+  static const double _activeSize   = 24.0;
+  static const double _inactiveSize = 18.0;
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final accent      = items[selectedIndex].color;
+    final accent      = _navItems[selectedIndex].color;
 
-    return Container(
-      color: Colors.transparent,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-            _sidePad, 0, _sidePad, _bottomPad + bottomInset),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(_radius),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 36, sigmaY: 36),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeOutCubic,
-              height: _navH,
+    // Scaffold background — must match CurvedNavigationBar.backgroundColor
+    // so the bump area blends into the page perfectly.
+    final scaffoldBg  = isDark ? AppColors.darkBg    : AppColors.lightBg;
+    final barSurface  = isDark ? AppColors.darkCard   : AppColors.lightSurface;
+    final inactiveCol = isDark
+        ? Colors.white.withValues(alpha: 0.38)
+        : Colors.grey.shade600;
+
+    return TweenAnimationBuilder<Color?>(
+      // Animate the bump background color as tabs change.
+      tween: ColorTween(end: accent),
+      duration: const Duration(milliseconds: 380),
+      curve: Curves.easeOutCubic,
+      builder: (ctx, animColor, child) {
+        final bumpColor = animColor ?? accent;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Thin accent rule above the bar ──────────────────────
+            // A full-width gradient line; fades at the edges so it
+            // looks like a center glow rather than a hard line.
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 380),
+              height: 1.5,
               decoration: BoxDecoration(
-                color: isDark
-                    ? AppColors.darkBg.withValues(alpha: 0.93)
-                    : AppColors.lightSurface.withValues(alpha: 0.96),
-                borderRadius: BorderRadius.circular(_radius),
-                border: Border.all(
-                  color: isDark
-                      ? AppColors.darkElevated
-                      : AppColors.lightBorder,
-                  width: 1,
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    bumpColor.withValues(alpha: isDark ? 0.70 : 0.50),
+                    bumpColor.withValues(alpha: isDark ? 0.70 : 0.50),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.15, 0.85, 1.0],
                 ),
+              ),
+            ),
+
+            // ── Accent glow + curved nav ─────────────────────────────
+            Container(
+              decoration: BoxDecoration(
                 boxShadow: [
-                  // Per-tab accent glow — shifts color with each selection
+                  // Accent colour glow radiates upward from the bar.
                   BoxShadow(
-                    color: accent.withValues(alpha: isDark ? 0.26 : 0.15),
-                    blurRadius: 40,
-                    spreadRadius: -6,
-                    offset: const Offset(0, -8),
+                    color: bumpColor
+                        .withValues(alpha: isDark ? 0.30 : 0.18),
+                    blurRadius: 26,
+                    spreadRadius: 0,
+                    offset: const Offset(0, -6),
                   ),
-                  // Depth shadow
+                  // Depth shadow beneath the bar.
                   BoxShadow(
                     color: Colors.black
-                        .withValues(alpha: isDark ? 0.60 : 0.10),
-                    blurRadius: 48,
-                    offset: const Offset(0, 18),
+                        .withValues(alpha: isDark ? 0.50 : 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: LayoutBuilder(
-                builder: (_, constraints) {
-                  final totalW = constraints.maxWidth;
-                  final itemW  = totalW / items.length;
-
-                  // Sliding pill highlight geometry
-                  final pillW = itemW * 0.82;
-                  final pillX =
-                      selectedIndex * itemW + (itemW - pillW) / 2;
-
-                  // Sliding bottom glow bar geometry
-                  const barW = 24.0;
-                  const barH = 3.0;
-                  final barX =
-                      selectedIndex * itemW + (itemW - barW) / 2;
-
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // ── Pill highlight ─────────────────────────────
-                      AnimatedPositioned(
-                        duration: const Duration(milliseconds: 320),
-                        curve: Curves.easeOutCubic,
-                        top: 8,
-                        left: pillX,
-                        width: pillW,
-                        height: _navH - 16,
-                        child: TweenAnimationBuilder<Color?>(
-                          tween: ColorTween(end: accent),
-                          duration: const Duration(milliseconds: 300),
-                          builder: (_, c, _) {
-                            final col = c ?? accent;
-                            return DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: col.withValues(
-                                    alpha: isDark ? 0.15 : 0.10),
-                                borderRadius: BorderRadius.circular(15),
-                                border: Border.all(
-                                  color: col.withValues(
-                                      alpha: isDark ? 0.28 : 0.16),
-                                  width: 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: col.withValues(alpha: 0.16),
-                                    blurRadius: 14,
-                                    spreadRadius: -2,
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                      // ── Bottom glow bar ────────────────────────────
-                      AnimatedPositioned(
-                        duration: const Duration(milliseconds: 320),
-                        curve: Curves.easeOutCubic,
-                        bottom: 0,
-                        left: barX,
-                        width: barW,
-                        height: barH,
-                        child: TweenAnimationBuilder<Color?>(
-                          tween: ColorTween(end: accent),
-                          duration: const Duration(milliseconds: 300),
-                          builder: (_, c, _) {
-                            final col = c ?? accent;
-                            return DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    col,
-                                    col.withValues(alpha: 0.35),
-                                  ],
-                                ),
-                                borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(2)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: col.withValues(alpha: 0.90),
-                                    blurRadius: 10,
-                                    spreadRadius: 2,
-                                    offset: const Offset(0, -2),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                      // ── Tab tiles ──────────────────────────────────
-                      Positioned.fill(
-                        child: Row(
-                          children: items.asMap().entries.map((e) {
-                            return _BottomNavTile(
-                              item: e.value,
-                              isSelected: e.key == selectedIndex,
-                              isDark: isDark,
-                              onTap: () => onTap(e.key),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
+              child: CurvedNavigationBar(
+                // Matches scaffold background → bump area is invisible.
+                backgroundColor: scaffoldBg,
+                // The bar itself is slightly elevated from the background.
+                color: barSurface,
+                // Animated accent hue per selected tab.
+                buttonBackgroundColor: bumpColor,
+                animationCurve: Curves.easeInOutCubic,
+                animationDuration: const Duration(milliseconds: 400),
+                height: _barHeight,
+                index: selectedIndex,
+                // Rebuild items on each selectedIndex change so:
+                //   active   → filled icon, white (inside the accent bump)
+                //   inactive → outlined icon + tiny label, low-opacity
+                items: List.generate(_navItems.length, (i) {
+                  final active = i == selectedIndex;
+                  if (active) {
+                    return Icon(
+                      _navItems[i].activeIcon,
+                      size: _activeSize,
+                      color: Colors.white,
+                    );
+                  }
+                  return _InactiveNavItem(
+                    item: _navItems[i],
+                    color: inactiveCol,
+                    iconSize: _inactiveSize,
                   );
-                },
+                }),
+                onTap: onTap,
               ),
             ),
-          ),
-        ),
-      ),
+
+            // ── Safe-area fill ───────────────────────────────────────
+            // Extends bar color to the home-indicator region so the
+            // bar never appears "cut off" on notched / gesture phones.
+            if (bottomInset > 0)
+              Container(
+                height: bottomInset,
+                color: barSurface,
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
-// ── Bottom nav tile ───────────────────────────────────────────────────────────
+// ── Inactive nav item: outlined icon + micro-label ────────────────────────────
+// Using a Column so each of the 8 items is identifiable even on a narrow phone.
+// Font size 7 dp is readable but doesn't compete with the active bump.
 
-class _BottomNavTile extends StatelessWidget {
-  const _BottomNavTile({
+class _InactiveNavItem extends StatelessWidget {
+  const _InactiveNavItem({
     required this.item,
-    required this.isSelected,
-    required this.isDark,
-    required this.onTap,
+    required this.color,
+    required this.iconSize,
   });
 
   final _NavItem item;
-  final bool isSelected;
-  final bool isDark;
-  final VoidCallback onTap;
+  final Color color;
+  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedScale(
-                scale: isSelected ? 1.18 : 1.0,
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOut,
-                  child: Icon(
-                    isSelected ? item.activeIcon : item.icon,
-                    key: ValueKey(isSelected),
-                    size: 22,
-                    color: isSelected
-                        ? item.color
-                        : isDark
-                            ? Colors.white.withValues(alpha: 0.28)
-                            : Colors.grey.shade500,
-                  ),
-                ),
-              ),
-              // Label collapses with AnimatedSize when not active
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: isSelected
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 220),
-                          style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.w800,
-                            color:
-                                isSelected ? item.color : Colors.transparent,
-                            letterSpacing: 0.3,
-                            fontFamily: 'Poppins',
-                          ),
-                          child: Text(
-                            item.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.clip,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(item.icon, size: iconSize, color: color),
+        const SizedBox(height: 2),
+        Text(
+          item.label,
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 7,
+            fontWeight: FontWeight.w700,
+            color: color,
+            letterSpacing: 0.2,
+            fontFamily: 'Poppins',
+            height: 1.0,
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  COMPACT RAIL  ─  landscape phones  (64 dp wide)
-//  Design: dark sidebar, icon + micro-label, per-item left-edge accent bar
-//  that expands/contracts with AnimatedPositioned + AnimatedOpacity.
+//  Per-item left-edge accent bar (Positioned, fades with AnimatedOpacity).
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _CompactRail extends StatelessWidget {
@@ -483,8 +402,7 @@ class _CompactRail extends StatelessWidget {
         border: Border(right: BorderSide(color: borderColor, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black
-                .withValues(alpha: isDark ? 0.30 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.05),
             blurRadius: 14,
             offset: const Offset(2, 0),
           ),
@@ -533,13 +451,11 @@ class _CompactRailItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      // Stack: non-positioned child (AnimatedContainer) determines size;
-      // Positioned left bar is overlaid at the left edge.
+      // Stack: the non-positioned AnimatedContainer determines height;
+      // the Positioned bar is overlaid at the left edge at full height.
       child: Stack(
         children: [
-          // ── Left edge accent bar ────────────────────────────────────
-          // Positioned(top:0,bottom:0) fills the item's full height.
-          // AnimatedOpacity fades it in/out; color is the item's accent.
+          // ── Left-edge accent bar ────────────────────────────────────
           Positioned(
             left: 0,
             top: 0,
@@ -628,9 +544,8 @@ class _CompactRailItem extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  EXTENDED RAIL  ─  tablets  (portrait + landscape)
-//  Design: 216–240 dp wide sidebar with DUONET logo header, section labels,
-//  labeled nav rows, and a per-item left-edge accent bar + gradient highlight.
+//  EXTENDED RAIL  ─  tablets  (portrait + landscape)  216–240 dp wide
+//  DUONET logo header, MAIN / MORE section groups, per-item left-edge bar.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _ExtendedRail extends StatelessWidget {
@@ -648,15 +563,13 @@ class _ExtendedRail extends StatelessWidget {
   final ValueChanged<int> onTap;
   final VoidCallback onMenuTap;
 
-  // First 4 items → "MAIN" section; rest → "MORE"
   static const _primaryEnd = 4;
 
   @override
   Widget build(BuildContext context) {
-    final railW = context.isLargeTablet ? 240.0 : 216.0;
-    final bg    = isDark ? AppColors.darkBg : AppColors.lightBg;
-    final borderColor =
-        isDark ? AppColors.darkElevated : AppColors.lightBorder;
+    final railW       = context.isLargeTablet ? 240.0 : 216.0;
+    final bg          = isDark ? AppColors.darkBg    : AppColors.lightBg;
+    final borderColor = isDark ? AppColors.darkElevated : AppColors.lightBorder;
 
     return Container(
       width: railW,
@@ -665,8 +578,7 @@ class _ExtendedRail extends StatelessWidget {
         border: Border(right: BorderSide(color: borderColor, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black
-                .withValues(alpha: isDark ? 0.30 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.04),
             blurRadius: 16,
             offset: const Offset(2, 0),
           ),
@@ -676,10 +588,8 @@ class _ExtendedRail extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Logo / brand header ──────────────────────────────────
+            // ── DUONET brand header ───────────────────────────────────
             _RailHeader(isDark: isDark, onMenuTap: onMenuTap),
-
-            // ── Divider ──────────────────────────────────────────────
             Container(
               height: 1,
               margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -696,14 +606,12 @@ class _ExtendedRail extends StatelessWidget {
                     vertical: 4, horizontal: 8),
                 children: [
                   _SectionLabel(label: 'MAIN', isDark: isDark),
-                  ...List.generate(_primaryEnd, (i) {
-                    return _ExtendedRailItem(
-                      item: items[i],
-                      isSelected: i == selectedIndex,
-                      isDark: isDark,
-                      onTap: () => onTap(i),
-                    );
-                  }),
+                  ...List.generate(_primaryEnd, (i) => _ExtendedRailItem(
+                    item: items[i],
+                    isSelected: i == selectedIndex,
+                    isDark: isDark,
+                    onTap: () => onTap(i),
+                  )),
                   const SizedBox(height: 4),
                   _SectionLabel(label: 'MORE', isDark: isDark),
                   ...List.generate(items.length - _primaryEnd, (i) {
@@ -726,7 +634,7 @@ class _ExtendedRail extends StatelessWidget {
   }
 }
 
-// ── Extended rail header ──────────────────────────────────────────────────────
+// ── Extended rail header (logo + hamburger) ───────────────────────────────────
 
 class _RailHeader extends StatelessWidget {
   const _RailHeader({required this.isDark, required this.onMenuTap});
@@ -739,7 +647,6 @@ class _RailHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 18, 8, 14),
       child: Row(
         children: [
-          // Logo circle
           Container(
             width: context.dp(34),
             height: context.dp(34),
@@ -791,14 +698,11 @@ class _ExtendedRailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Outer Padding provides vertical rhythm between items.
-    // Stack: non-positioned InkWell/AnimatedContainer determines height;
-    // Positioned left bar is overlaid at the left edge.
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Stack(
         children: [
-          // ── Left edge accent bar (same pattern as compact rail) ────
+          // ── Left-edge accent bar ────────────────────────────────────
           Positioned(
             left: 0,
             top: 0,
@@ -896,7 +800,7 @@ class _ExtendedRailItem extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Active dot indicator
+                  // Glowing active dot
                   AnimatedOpacity(
                     duration: const Duration(milliseconds: 240),
                     opacity: isSelected ? 1.0 : 0.0,
@@ -950,7 +854,7 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ─── Shared hamburger / menu button ──────────────────────────────────────────
+// ─── Shared hamburger button ──────────────────────────────────────────────────
 
 class _RailMenuBtn extends StatelessWidget {
   const _RailMenuBtn({

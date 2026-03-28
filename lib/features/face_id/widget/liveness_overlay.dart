@@ -74,10 +74,12 @@ class _LivenessOverlayState extends State<LivenessOverlay>
   //   Fix: use narrower width and taller height fractions so the oval stays
   //   portrait-shaped even in landscape.
   //   Example 844×390: 0.32×0.90 = 270×351 px → ratio 0.77 (taller ✓)
-  static const double _ovalWidthFraction          = 0.72;
-  static const double _ovalWidthFractionLandscape = 0.32;
-  static const double _ovalHeightFractionPortrait  = 0.46;
-  static const double _ovalHeightFractionLandscape = 0.90;
+  static const double _ovalWidthFraction                  = 0.72;
+  static const double _ovalWidthFractionLandscape          = 0.32;
+  static const double _ovalWidthFractionLandscapeTablet    = 0.42;
+  static const double _ovalHeightFractionPortrait          = 0.46;
+  static const double _ovalHeightFractionLandscape         = 0.90;
+  static const double _ovalHeightFractionLandscapeTablet   = 0.86;
   // Center X offset in landscape (fraction of screen width) — shifted left of
   // the side panel to keep the oval centred in the visible camera area.
   static const double _ovalCenterXLandscape = 0.38;
@@ -223,6 +225,7 @@ class _LivenessOverlayState extends State<LivenessOverlay>
               scanAnim: _scanController,
               arrowAnim: _arrowPulse,
               isLandscape: isLandscape,
+              isTablet: isTablet,
             ),
 
             // ── Top progress header ────────────────────────────────────
@@ -1078,41 +1081,53 @@ class _FaceAlignmentFeedback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (facePresent) {
+      // ConstrainedBox bounds the badge so it never overflows on narrow screens
+      // (e.g. Samsung A51 ~392 dp) or the compact landscape side-panel (~172 dp
+      // inner width). Flexible on the Text lets the label truncate gracefully
+      // when text scale is increased by system accessibility settings.
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00D68F).withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFF00D68F).withValues(alpha: 0.35),
-              ),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: compact ? 160.0 : 280.0,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFF00D68F),
-                  ),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00D68F).withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFF00D68F).withValues(alpha: 0.35),
                 ),
-                const SizedBox(width: 7),
-                Text(
-                  'Face detected — ready!',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: const Color(0xFF00D68F),
-                    fontSize: compact ? 11 : (isTablet ? 13 : 12),
-                    fontWeight: FontWeight.w700,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF00D68F),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      'Face detected — ready!',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: const Color(0xFF00D68F),
+                        fontSize: compact ? 11 : (isTablet ? 13 : 12),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1475,6 +1490,7 @@ class _FaceOvalPainterWidget extends StatelessWidget {
     required this.scanAnim,
     required this.arrowAnim,
     required this.isLandscape,
+    required this.isTablet,
   }) : _pulseAnim = pulseAnim;
 
   final FaceIdState state;
@@ -1482,6 +1498,7 @@ class _FaceOvalPainterWidget extends StatelessWidget {
   final AnimationController scanAnim;
   final Animation<double> arrowAnim;
   final bool isLandscape;
+  final bool isTablet;
 
   @override
   Widget build(BuildContext context) {
@@ -1538,6 +1555,7 @@ class _FaceOvalPainterWidget extends StatelessWidget {
             showAlignmentTarget: showAlignmentTarget,
             arrowPulse: arrow,
             isLandscape: isLandscape,
+            isTablet: isTablet,
           ),
           child: const SizedBox.expand(),
         );
@@ -1556,6 +1574,7 @@ class _OvalOverlayPainter extends CustomPainter {
     required this.showAlignmentTarget,
     required this.arrowPulse,
     required this.isLandscape,
+    required this.isTablet,
   });
 
   final Color borderColor;
@@ -1566,6 +1585,7 @@ class _OvalOverlayPainter extends CustomPainter {
   final bool showAlignmentTarget;
   final double arrowPulse;
   final bool isLandscape;
+  final bool isTablet;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1581,11 +1601,17 @@ class _OvalOverlayPainter extends CustomPainter {
 
     // Landscape oval: narrow width + tall height → portrait-shaped oval so the
     // face is never distorted regardless of device orientation.
+    // Tablets in landscape use wider/shorter fractions so the oval fills the
+    // larger camera-preview area (e.g. Tab S6 / S10 landscape).
     final ovalW = isLandscape
-        ? size.width  * _LivenessOverlayState._ovalWidthFractionLandscape
-        : size.width  * _LivenessOverlayState._ovalWidthFraction;
+        ? size.width * (isTablet
+            ? _LivenessOverlayState._ovalWidthFractionLandscapeTablet
+            : _LivenessOverlayState._ovalWidthFractionLandscape)
+        : size.width * _LivenessOverlayState._ovalWidthFraction;
     final ovalH = isLandscape
-        ? size.height * _LivenessOverlayState._ovalHeightFractionLandscape
+        ? size.height * (isTablet
+            ? _LivenessOverlayState._ovalHeightFractionLandscapeTablet
+            : _LivenessOverlayState._ovalHeightFractionLandscape)
         : size.height * _LivenessOverlayState._ovalHeightFractionPortrait;
 
     final center = Offset(centerX, centerY);
@@ -1772,12 +1798,13 @@ class _OvalOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_OvalOverlayPainter old) =>
-      old.borderColor        != borderColor        ||
-      old.glowIntensity      != glowIntensity      ||
-      old.scanProgress       != scanProgress       ||
-      old.scanColor          != scanColor          ||
+      old.borderColor         != borderColor         ||
+      old.glowIntensity       != glowIntensity       ||
+      old.scanProgress        != scanProgress        ||
+      old.scanColor           != scanColor           ||
       old.showAlignmentArrows != showAlignmentArrows ||
       old.showAlignmentTarget != showAlignmentTarget ||
-      old.arrowPulse         != arrowPulse         ||
-      old.isLandscape        != isLandscape;        // orientation change
+      old.arrowPulse          != arrowPulse          ||
+      old.isLandscape         != isLandscape         ||
+      old.isTablet            != isTablet;            // tablet/phone switch
 }

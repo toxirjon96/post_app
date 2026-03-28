@@ -191,27 +191,23 @@ class _LivenessOverlayState extends State<LivenessOverlay>
   Widget build(BuildContext context) {
     return BlocConsumer<FaceIdBloc, FaceIdState>(
       listenWhen: (prev, curr) {
-        final taskChanged = prev is FaceIdRunning &&
-            curr is FaceIdRunning &&
-            prev.currentTask != curr.currentTask;
-        final allDone =
-            prev is! FaceIdAllTasksDone && curr is FaceIdAllTasksDone;
-        return taskChanged || allDone;
+        if (prev is FaceIdRunning && curr is FaceIdRunning && prev.currentTask != curr.currentTask) return true;
+        if (prev is! FaceIdAllTasksDone && curr is FaceIdAllTasksDone) return true;
+        if (prev is FaceIdAllTasksDone && curr is FaceIdAllTasksDone && prev.facePresent != curr.facePresent) return true;
+        return false;
       },
       listener: (context, state) {
         if (state is FaceIdRunning) {
           _taskController.forward(from: 0);
         } else if (state is FaceIdAllTasksDone) {
-          _successController.forward(from: 0);
-          if (!state.facePresent) _startHintCycle();
+          if (_successController.status == AnimationStatus.dismissed) {
+            _successController.forward();
+            if (!state.facePresent) _startHintCycle();
+          }
+          _onFaceReadyTransition(state.facePresent);
         }
       },
       builder: (context, state) {
-        // Track face-ready transition for button animation
-        if (state is FaceIdAllTasksDone) {
-          _onFaceReadyTransition(state.facePresent);
-        }
-
         final isLandscape =
             MediaQuery.orientationOf(context) == Orientation.landscape;
         final size = MediaQuery.sizeOf(context);
@@ -1083,6 +1079,7 @@ class _FaceAlignmentFeedback extends StatelessWidget {
   Widget build(BuildContext context) {
     if (facePresent) {
       return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding:

@@ -102,6 +102,28 @@ class MainScaffold extends StatefulWidget {
 class _MainScaffoldState extends State<MainScaffold> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  // Close the floating drawer whenever the layout switches to the
+  // always-visible panel mode (landscape or tablet).  Both share the same
+  // _scaffoldKey, so ScaffoldState — and its drawer-open flag — persists
+  // across orientation changes.  Without this, the portrait drawer remains
+  // as an overlay on top of the landscape panel.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isTablet =
+        MediaQuery.sizeOf(context).shortestSide >= 600;
+    if (isLandscape || isTablet) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            (_scaffoldKey.currentState?.isDrawerOpen ?? false)) {
+          _scaffoldKey.currentState?.closeDrawer();
+        }
+      });
+    }
+  }
+
   int _selectedIndex(BuildContext context) {
     final path = GoRouterState.of(context).uri.path;
     for (int i = 0; i < _routes.length; i++) {

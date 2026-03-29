@@ -98,9 +98,15 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
       return;
     }
 
-    if (!currentState.faceDetected) {
-      emit(currentState.copyWith(faceDetected: true));
+    // A face is only considered "detected" (ready for task checks) when it is
+    // centred inside the on-screen oval.  Faces detected anywhere in the frame
+    // are ignored until the user moves into position.
+    final centered = _isFaceCentered(face, event.imageSize);
+    if (currentState.faceDetected != centered) {
+      _consecutiveFrames = 0;
+      emit(currentState.copyWith(faceDetected: centered));
     }
+    if (!centered) return;
 
     if (_isTaskSatisfied(face, currentState.currentTask)) {
       _consecutiveFrames++;
@@ -153,6 +159,32 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     final pitch = (face.headEulerAngleX ?? 0).abs();
     if (yaw > 20 || pitch > 20) return false;
 
+    return true;
+  }
+
+  /// Returns true when the face bounding-box centre is within the central 60%
+  /// of both image dimensions and the face is adequately sized.
+  /// Head angle is intentionally NOT checked here so that tasks which require
+  /// head rotation (turnLeft / turnRight) can still be gated by centering.
+  bool _isFaceCentered(Face face, Size imageSize) {
+    final box = face.boundingBox;
+
+    if (imageSize != Size.zero) {
+      if (box.left   < 0              ||
+          box.top    < 0              ||
+          box.right  > imageSize.width ||
+          box.bottom > imageSize.height) {
+        return false;
+      }
+      final minDim = min(imageSize.width, imageSize.height);
+      if (box.width < minDim * 0.18) return false;
+
+      final normX = (box.left + box.width  / 2) / imageSize.width  - 0.5;
+      final normY = (box.top  + box.height / 2) / imageSize.height - 0.5;
+      if (normX.abs() > 0.30 || normY.abs() > 0.30) return false;
+    } else {
+      if (box.width < 90) return false;
+    }
     return true;
   }
 

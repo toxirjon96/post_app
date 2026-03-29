@@ -14,10 +14,17 @@ final class FaceIdPermissionResult extends FaceIdEvent {
 }
 
 final class FaceIdFaceUpdated extends FaceIdEvent {
-  const FaceIdFaceUpdated({this.face, this.imageSize = Size.zero}) : super._();
+  const FaceIdFaceUpdated({
+    this.face,
+    this.imageSize = Size.zero,
+    this.imageRotationDegrees = 0,
+  }) : super._();
   final Face? face;
   /// Native camera image dimensions — used for face-position quality checks.
   final Size imageSize;
+  /// Clockwise rotation (0 / 90 / 180 / 270) applied to map the camera frame
+  /// to the current display orientation.  Portrait = 90 or 270; Landscape = 0 or 180.
+  final int imageRotationDegrees;
 }
 
 final class FaceIdSelfieCapture extends FaceIdEvent {

@@ -101,7 +101,7 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     // A face is only considered "detected" (ready for task checks) when it is
     // centred inside the on-screen oval.  Faces detected anywhere in the frame
     // are ignored until the user moves into position.
-    final centered = _isFaceCentered(face, event.imageSize);
+    final centered = _isFaceCentered(face, event.imageSize, event.imageRotationDegrees);
     if (currentState.faceDetected != centered) {
       _consecutiveFrames = 0;
       emit(currentState.copyWith(faceDetected: centered));
@@ -162,30 +162,69 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     return true;
   }
 
-  /// Returns true when the face bounding-box centre is within the central 60%
-  /// of both image dimensions and the face is adequately sized.
-  /// Head angle is intentionally NOT checked here so that tasks which require
-  /// head rotation (turnLeft / turnRight) can still be gated by centering.
-  bool _isFaceCentered(Face face, Size imageSize) {
+  /// Returns true when the face centre falls inside the on-screen oval and the
+  /// face is adequately sized.  Head angle is NOT checked so that turn tasks
+  /// (turnLeft / turnRight) are still gated by centering.
+  ///
+  /// [rotationDegrees] is the clockwise rotation used to map the raw camera
+  /// frame to the current display orientation (0 / 90 / 180 / 270).
+  /// Portrait display = 90° or 270°; landscape display = 0° or 180°.
+  ///
+  /// Oval constants mirror liveness_overlay.dart:
+  ///   Portrait  → center (0.50, 0.37), size (72 %, 46 %)
+  ///   Landscape → center (0.38, 0.50), size (32 %, 90 %)
+  bool _isFaceCentered(Face face, Size imageSize, int rotationDegrees) {
     final box = face.boundingBox;
 
-    if (imageSize != Size.zero) {
-      if (box.left   < 0              ||
-          box.top    < 0              ||
-          box.right  > imageSize.width ||
-          box.bottom > imageSize.height) {
-        return false;
-      }
-      final minDim = min(imageSize.width, imageSize.height);
-      if (box.width < minDim * 0.18) return false;
+    if (imageSize == Size.zero) return box.width >= 90;
 
-      final normX = (box.left + box.width  / 2) / imageSize.width  - 0.5;
-      final normY = (box.top  + box.height / 2) / imageSize.height - 0.5;
-      if (normX.abs() > 0.30 || normY.abs() > 0.30) return false;
-    } else {
-      if (box.width < 90) return false;
+    // Face bounding-box must be fully inside the camera frame.
+    if (box.left   < 0              ||
+        box.top    < 0              ||
+        box.right  > imageSize.width ||
+        box.bottom > imageSize.height) {
+      return false;
     }
-    return true;
+
+    // Face must fill at least 18 % of the smaller image dimension.
+    final minDim = min(imageSize.width, imageSize.height);
+    if (box.width < minDim * 0.18) return false;
+
+    final cx = box.left + box.width  / 2;
+    final cy = box.top  + box.height / 2;
+    final cw = imageSize.width;
+    final ch = imageSize.height;
+
+    // ── Transform face centre from camera-image space → screen-normalised ──
+    // The mapping depends on how many degrees the image is rotated CW to reach
+    // the display orientation.
+    double screenX, screenY; // both in [0, 1] screen-normalised space
+    switch (rotationDegrees) {
+      case 90:
+        // Camera X → display Y; camera Y → display X (flipped).
+        screenX = (ch - cy) / ch;
+        screenY = cx / cw;
+      case 270:
+        // Camera X → display Y (flipped); camera Y → display X.
+        screenX = cy / ch;
+        screenY = (cw - cx) / cw;
+      case 180:
+        screenX = 1.0 - cx / cw;
+        screenY = 1.0 - cy / ch;
+      default: // 0°
+        screenX = cx / cw;
+        screenY = cy / ch;
+    }
+
+    // ── Oval bounds in screen-normalised space ────────────────────────────
+    final isPortrait = rotationDegrees == 90 || rotationDegrees == 270;
+    final ovalCx    = isPortrait ? 0.50 : 0.38;
+    final ovalCy    = isPortrait ? 0.37 : 0.50;
+    final ovalHalfW = isPortrait ? 0.36 : 0.16; // 72 %/2 or 32 %/2
+    final ovalHalfH = isPortrait ? 0.23 : 0.45; // 46 %/2 or 90 %/2
+
+    return (screenX - ovalCx).abs() <= ovalHalfW &&
+           (screenY - ovalCy).abs() <= ovalHalfH;
   }
 
   bool _isTaskSatisfied(Face face, LivenessTask task) {

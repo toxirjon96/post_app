@@ -21,6 +21,7 @@ class FaceCameraViewState extends State<FaceCameraView> {
   CameraDescription? _camera;
   bool _isProcessing = false;
   bool _isInitialized = false;
+  int _lastRotationDegrees = 0;
 
   final _faceDetector = FaceDetector(
     options: FaceDetectorOptions(
@@ -102,6 +103,7 @@ class FaceCameraViewState extends State<FaceCameraView> {
             FaceIdFaceUpdated(
               face: faces.isNotEmpty ? faces.first : null,
               imageSize: Size(image.width.toDouble(), image.height.toDouble()),
+              imageRotationDegrees: _lastRotationDegrees,
             ),
           );
     } finally {
@@ -130,6 +132,7 @@ class FaceCameraViewState extends State<FaceCameraView> {
     }
 
     if (rotation == null) return null;
+    _lastRotationDegrees = rotation.rawValue;
 
     final format = InputImageFormatValue.fromRawValue(image.format.raw);
     if (format == null) return null;

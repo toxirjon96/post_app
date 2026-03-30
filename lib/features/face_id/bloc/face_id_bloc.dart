@@ -21,6 +21,74 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
 
   late List<LivenessTask> _tasks;
 
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Oval geometry — must mirror liveness_overlay.dart exactly.
+  //  Values are in screen-normalised [0..1] space (cx/cy = centre, hw/hh = half-axes).
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Portrait  (rotationDegrees == 90 or 270)
+  static const _kPOvalCx = 0.50; static const _kPOvalCy = 0.37;
+  static const _kPOvalHw = 0.36; static const _kPOvalHh = 0.23;
+
+  // Landscape (rotationDegrees == 0 or 180)
+  static const _kLOvalCx = 0.38; static const _kLOvalCy = 0.50;
+  static const _kLOvalHw = 0.16; static const _kLOvalHh = 0.45;
+
+  // ── Face ellipse estimation ───────────────────────────────────────────────
+  //
+  // IMPORTANT — why bounding-box only (no IOD-based sizing):
+  //
+  // Screen-normalised space is NOT equal-scale: X values are fractions of the
+  // screen WIDTH, Y values are fractions of the screen HEIGHT.  On a typical
+  // portrait phone (390 × 844 px) one Y-unit represents 844/390 ≈ 2.16 ×
+  // the physical length of one X-unit.  Biometric IOD multipliers (e.g.
+  // "faceHeight = IOD × 3.7") are derived in pixel/metric space where X = Y
+  // scale; applying them directly to mixed-unit normalised IOD inflates the
+  // face half-height by ~2 ×, which pushes top/bottom perimeter points outside
+  // the oval even when the face is correctly centred.
+  //
+  // The bounding-box corners, by contrast, are each normalised along their own
+  // axis (left/right → X, top/bottom → Y), so the resulting half-axes are
+  // already in the correct per-axis units and no aspect-ratio correction is
+  // needed.
+  //
+  // What the scale factors represent:
+  //   ML Kit's bbox includes roughly 20-28 % extra margin beyond the
+  //   visible face on each axis (forehead / hair at the top, chin/neck at the
+  //   bottom, temples at the sides).  A scale factor of 0.72 shrinks the bbox
+  //   to the "inner face features" ellipse — the region that spans from eye
+  //   outer corner to eye outer corner horizontally, and from high-forehead to
+  //   lower-chin vertically.  The check then verifies that this inner region
+  //   sits inside the guide oval, which is the perceptually correct criterion
+  //   (the user's features must be inside the oval, not merely the face centre).
+  static const _kBboxEllipseWidthRatio  = 0.72;
+  static const _kBboxEllipseHeightRatio = 0.72;
+
+  // ── Perimeter sampling ────────────────────────────────────────────────────
+  static const _kPerimeterSamples = 16;
+
+  // ── Oval inset factors ────────────────────────────────────────────────────
+  //
+  // The test oval is inset from the display oval so there is a small buffer
+  // between "detected as inside" and the visible oval edge.
+  //   0.95 → 5 % inset during liveness (allows normal head movement).
+  //   0.90 → 10 % inset for the selfie check (face must be well-centred).
+  static const _kInsetLiveness = 0.95;
+  static const _kInsetSelfie   = 0.90;
+
+  // ── Coverage ratio bounds ─────────────────────────────────────────────────
+  //
+  // face-features ellipse area / oval area must be within [min, max].
+  //   Too small → face is too far away (low resolution, poor quality).
+  //   Too large → face is extremely close (geometry distortion).
+  static const _kMinCoverageLiveness = 0.15;
+  static const _kMinCoverageSelfie   = 0.22;
+  static const _kMaxCoverage         = 0.85;
+
+  // ── Selfie head-pose limits ───────────────────────────────────────────────
+  static const _kSelfieMaxYaw   = 15.0; // degrees
+  static const _kSelfieMaxPitch = 15.0; // degrees
+
   // ── Liveness task frame counter ───────────────────────────────────────────
   static const _requiredFrames = 3;
   int _consecutiveFrames = 0;
@@ -130,159 +198,176 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     }
   }
 
-  /// Returns true only when the face is large enough, fully inside the frame,
-  /// roughly forward-facing, AND centred inside the on-screen guide oval.
-  bool _isFaceProperlyPositioned(Face face, Size imageSize, int rotationDegrees) {
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  Face-in-oval containment — core algorithm
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Converts a raw camera-image pixel (px, py) to a screen-normalised point
+  /// in [0..1] × [0..1] space, compensating for the clockwise rotation applied
+  /// to map the camera frame to the display orientation.
+  ///
+  /// Rotation conventions (CW degrees):
+  ///   0°  → camera image already aligned with display (landscape sensors).
+  ///   90° → 90° CW — most rear cameras in portrait.
+  ///  180° → 180° CW — upside-down portrait.
+  ///  270° → 270° CW (= 90° CCW) — most front cameras in portrait.
+  (double, double) _toScreenNorm(double px, double py, Size img, int rot) {
+    final w = img.width, h = img.height;
+    return switch (rot) {
+      90  => ((h - py) / h, px / w),
+      270 => (py / h, (w - px) / w),
+      180 => (1.0 - px / w, 1.0 - py / h),
+      _   => (px / w, py / h), // 0°
+    };
+  }
+
+  /// Unified face-in-oval containment check.
+  ///
+  /// Three-tier pipeline:
+  ///
+  /// **Tier 1 – Frame sanity**
+  ///   Bbox fully inside camera frame; face at least 15 % of smaller dimension.
+  ///
+  /// **Tier 2 – Ellipse-in-ellipse perimeter sampling**
+  ///   Estimates the "inner face features" ellipse from the ML Kit bounding box
+  ///   (scaled by [_kBboxEllipseWidthRatio] / [_kBboxEllipseHeightRatio]).
+  ///   The face centre is the eye-landmark midpoint when available, otherwise
+  ///   the bbox centre.  16 uniformly-spaced perimeter points are then tested
+  ///   against the *inset* guide oval; all must lie inside.
+  ///
+  ///   WHY bbox-only for size (not IOD):
+  ///   Screen-normalised X and Y are in different physical units (fractions of
+  ///   width vs fractions of height), so biometric IOD multipliers — derived in
+  ///   equal-scale pixel space — produce incorrect face heights in this space.
+  ///   Bbox corners, on the other hand, are normalised per-axis, so the
+  ///   resulting half-axes are already in correct per-axis units.
+  ///
+  /// **Tier 3 – Coverage ratio gate**
+  ///   face-features area / oval area in [minCoverageRatio, [_kMaxCoverage]].
+  bool _isFaceInOval(
+    Face face,
+    Size imageSize,
+    int rotationDegrees, {
+    required double insetFactor,
+    required double minCoverageRatio,
+  }) {
     final box = face.boundingBox;
 
-    // ── Face must be fully inside the camera frame ────────────────────────
-    if (imageSize != Size.zero) {
-      if (box.left   < 0              ||
-          box.top    < 0              ||
-          box.right  > imageSize.width ||
-          box.bottom > imageSize.height) {
-        return false;
-      }
-      // Face bounding-box width must be ≥ 18% of the smaller image dimension
-      // (guards against detecting a tiny or edge-cropped face).
-      final minDim = min(imageSize.width, imageSize.height);
-      if (box.width < minDim * 0.18) return false;
-    } else {
-      // Fallback when imageSize is unknown: require a minimum pixel width.
-      if (box.width < 90) return false;
+    // ── Tier 1: frame sanity ──────────────────────────────────────────────
+    if (imageSize == Size.zero) return box.width >= 90;
+
+    if (box.left < 0 || box.top < 0 ||
+        box.right > imageSize.width || box.bottom > imageSize.height) {
+      return false;
     }
+    final minDim = min(imageSize.width, imageSize.height);
+    if (box.width < minDim * 0.15) return false;
 
-    // ── Head must be roughly forward-facing ───────────────────────────────
-    // Yaw (left/right): allow ±20°
-    // Pitch (up/down):  allow ±20°
-    final yaw   = (face.headEulerAngleY ?? 0).abs();
-    final pitch = (face.headEulerAngleX ?? 0).abs();
-    if (yaw > 20 || pitch > 20) return false;
+    // ── Oval parameters ───────────────────────────────────────────────────
+    final isPortrait = rotationDegrees == 90 || rotationDegrees == 270;
+    final oCx = isPortrait ? _kPOvalCx : _kLOvalCx;
+    final oCy = isPortrait ? _kPOvalCy : _kLOvalCy;
+    final oHw = isPortrait ? _kPOvalHw : _kLOvalHw;
+    final oHh = isPortrait ? _kPOvalHh : _kLOvalHh;
+    final iHw = oHw * insetFactor; // inset test half-width
+    final iHh = oHh * insetFactor; // inset test half-height
 
-    // ── Face must be inside the guide oval ────────────────────────────────
-    // Use the standard ellipse equation (dx/a)² + (dy/b)² ≤ 1 for a proper
-    // oval test — rectangular abs() checks incorrectly pass faces sitting in
-    // the rectangle's corners but outside the ellipse.
+    (double, double) ts(double px, double py) =>
+        _toScreenNorm(px, py, imageSize, rotationDegrees);
+
+    // ── Face features ellipse ─────────────────────────────────────────────
     //
-    // Two tiers:
-    //   • Face CENTRE must be strictly inside the oval (t = 1.0).
-    //   • All four bounding-box CORNERS must be within a 1.12× enlarged oval.
-    //     ML Kit's bounding box includes a small margin beyond the face
-    //     geometry, so a tight oval would reject valid centred positions.
-    if (imageSize != Size.zero) {
-      final isPortrait = rotationDegrees == 90 || rotationDegrees == 270;
-      final ovalCx    = isPortrait ? 0.50 : 0.38;
-      final ovalCy    = isPortrait ? 0.37 : 0.50;
-      final ovalHalfW = isPortrait ? 0.36 : 0.16;
-      final ovalHalfH = isPortrait ? 0.23 : 0.45;
+    // Size: always from the bounding box.
+    //   Transform the two opposing bbox corners to screen-normalised space and
+    //   take the axis-aligned extent.  Each axis is normalised independently
+    //   (X → width-fraction, Y → height-fraction), so no aspect-ratio
+    //   correction is required.
+    final (x0, y0) = ts(box.left,  box.top);
+    final (x1, y1) = ts(box.right, box.bottom);
+    final bMinX = min(x0, x1), bMaxX = max(x0, x1);
+    final bMinY = min(y0, y1), bMaxY = max(y0, y1);
 
-      // Maps a camera-pixel (px, py) to screen-normalised [0..1] space using
-      // the same rotation logic as _isFaceCentered.
-      (double, double) toScreen(double px, double py) {
-        final cw = imageSize.width;
-        final ch = imageSize.height;
-        return switch (rotationDegrees) {
-          90  => ((ch - py) / ch, px / cw),
-          270 => (py / ch,        (cw - px) / cw),
-          180 => (1.0 - px / cw,  1.0 - py / ch),
-          _   => (px / cw,        py / ch),
-        };
-      }
+    final faceHw = (bMaxX - bMinX) / 2 * _kBboxEllipseWidthRatio;
+    final faceHh = (bMaxY - bMinY) / 2 * _kBboxEllipseHeightRatio;
 
-      // Centre check (strict oval).
-      final faceCx = box.left + box.width  / 2;
-      final faceCy = box.top  + box.height / 2;
-      final (sx, sy) = toScreen(faceCx, faceCy);
-      final ddx = (sx - ovalCx) / ovalHalfW;
-      final ddy = (sy - ovalCy) / ovalHalfH;
-      if (ddx * ddx + ddy * ddy > 1.0) return false;
+    // Centre: eye midpoint when landmarks are available (more accurate than
+    // bbox centre, especially when the head is slightly rolled), otherwise
+    // fall back to the bbox centre.  No vertical offset is applied — the
+    // eye midpoint is a stable proxy for the face centre in this context.
+    double faceCx, faceCy;
+    final leftEyeLm  = face.landmarks[FaceLandmarkType.leftEye];
+    final rightEyeLm = face.landmarks[FaceLandmarkType.rightEye];
 
-      // Corner check (1.12× enlarged oval).
-      const t = 1.12;
-      for (final (px, py) in [
-        (box.left,  box.top),
-        (box.right, box.top),
-        (box.left,  box.bottom),
-        (box.right, box.bottom),
-      ]) {
-        final (bsx, bsy) = toScreen(px, py);
-        final dx = (bsx - ovalCx) / (ovalHalfW * t);
-        final dy = (bsy - ovalCy) / (ovalHalfH * t);
-        if (dx * dx + dy * dy > 1.0) return false;
-      }
+    if (leftEyeLm != null && rightEyeLm != null) {
+      final (lex, ley) = ts(
+          leftEyeLm.position.x.toDouble(), leftEyeLm.position.y.toDouble());
+      final (rex, rey) = ts(
+          rightEyeLm.position.x.toDouble(), rightEyeLm.position.y.toDouble());
+      faceCx = (lex + rex) / 2;
+      faceCy = (ley + rey) / 2;
+    } else {
+      faceCx = (bMinX + bMaxX) / 2;
+      faceCy = (bMinY + bMaxY) / 2;
     }
+
+    // ── Tier 2: 16-point perimeter containment ────────────────────────────
+    for (int i = 0; i < _kPerimeterSamples; i++) {
+      final angle = 2 * pi * i / _kPerimeterSamples;
+      final px = faceCx + faceHw * cos(angle);
+      final py = faceCy + faceHh * sin(angle);
+      final dx = (px - oCx) / iHw;
+      final dy = (py - oCy) / iHh;
+      if (dx * dx + dy * dy > 1.0) return false;
+    }
+
+    // ── Tier 3: coverage ratio ────────────────────────────────────────────
+    final coverage = (faceHw * faceHh) / (oHw * oHh);
+    if (coverage < minCoverageRatio || coverage > _kMaxCoverage) return false;
 
     return true;
   }
 
-  /// Returns true when the face centre falls inside the on-screen oval and the
-  /// face is adequately sized.  Head angle is NOT checked so that turn tasks
-  /// (turnLeft / turnRight) are still gated by centering.
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  Public-facing check methods (called from _onFaceUpdated)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Returns `true` when the face is well-positioned inside the guide oval and
+  /// adequately sized for liveness-task checking.
   ///
-  /// Containment uses the standard ellipse equation (dx/a)² + (dy/b)² ≤ 1
-  /// so that faces at the corners of the bounding rectangle — which are outside
-  /// the actual ellipse — are correctly rejected.
+  /// Head-angle is intentionally **not** tested here so that turn-left /
+  /// turn-right tasks are still permitted while the face is centred; the yaw
+  /// change for those tasks is what [_isTaskSatisfied] detects.
   ///
-  /// [rotationDegrees] is the clockwise rotation used to map the raw camera
-  /// frame to the current display orientation (0 / 90 / 180 / 270).
-  /// Portrait display = 90° or 270°; landscape display = 0° or 180°.
+  /// Delegates to [_isFaceInOval] with the liveness inset (0.92 = 8% margin)
+  /// and a minimum coverage ratio of 20 %.
+  bool _isFaceCentered(Face face, Size imageSize, int rotationDegrees) =>
+      _isFaceInOval(
+        face,
+        imageSize,
+        rotationDegrees,
+        insetFactor: _kInsetLiveness,
+        minCoverageRatio: _kMinCoverageLiveness,
+      );
+
+  /// Returns `true` when the face is large enough, fully inside the guide oval,
+  /// AND the head is approximately forward-facing — all required before the
+  /// "Take Selfie" button activates.
   ///
-  /// Oval constants mirror liveness_overlay.dart:
-  ///   Portrait  → center (0.50, 0.37), size (72 %, 46 %)
-  ///   Landscape → center (0.38, 0.50), size (32 %, 90 %)
-  bool _isFaceCentered(Face face, Size imageSize, int rotationDegrees) {
-    final box = face.boundingBox;
+  /// Uses a tighter oval inset (0.87 = 13 %) and 30 % minimum coverage to
+  /// ensure the captured image contains a well-framed, undistorted face.
+  bool _isFaceProperlyPositioned(Face face, Size imageSize, int rotationDegrees) {
+    // Head must be roughly forward-facing for a quality selfie.
+    final yaw   = (face.headEulerAngleY ?? 0).abs();
+    final pitch = (face.headEulerAngleX ?? 0).abs();
+    if (yaw > _kSelfieMaxYaw || pitch > _kSelfieMaxPitch) return false;
 
-    if (imageSize == Size.zero) return box.width >= 90;
-
-    // Face bounding-box must be fully inside the camera frame.
-    if (box.left   < 0              ||
-        box.top    < 0              ||
-        box.right  > imageSize.width ||
-        box.bottom > imageSize.height) {
-      return false;
-    }
-
-    // Face must fill at least 18 % of the smaller image dimension.
-    final minDim = min(imageSize.width, imageSize.height);
-    if (box.width < minDim * 0.18) return false;
-
-    final cx = box.left + box.width  / 2;
-    final cy = box.top  + box.height / 2;
-    final cw = imageSize.width;
-    final ch = imageSize.height;
-
-    // ── Transform face centre from camera-image space → screen-normalised ──
-    // The mapping depends on how many degrees the image is rotated CW to reach
-    // the display orientation.
-    double screenX, screenY; // both in [0, 1] screen-normalised space
-    switch (rotationDegrees) {
-      case 90:
-        // Camera X → display Y; camera Y → display X (flipped).
-        screenX = (ch - cy) / ch;
-        screenY = cx / cw;
-      case 270:
-        // Camera X → display Y (flipped); camera Y → display X.
-        screenX = cy / ch;
-        screenY = (cw - cx) / cw;
-      case 180:
-        screenX = 1.0 - cx / cw;
-        screenY = 1.0 - cy / ch;
-      default: // 0°
-        screenX = cx / cw;
-        screenY = cy / ch;
-    }
-
-    // ── Oval bounds in screen-normalised space ────────────────────────────
-    final isPortrait = rotationDegrees == 90 || rotationDegrees == 270;
-    final ovalCx    = isPortrait ? 0.50 : 0.38;
-    final ovalCy    = isPortrait ? 0.37 : 0.50;
-    final ovalHalfW = isPortrait ? 0.36 : 0.16; // 72 %/2 or 32 %/2
-    final ovalHalfH = isPortrait ? 0.23 : 0.45; // 46 %/2 or 90 %/2
-
-    final dx = (screenX - ovalCx) / ovalHalfW;
-    final dy = (screenY - ovalCy) / ovalHalfH;
-    return dx * dx + dy * dy <= 1.0;
+    return _isFaceInOval(
+      face,
+      imageSize,
+      rotationDegrees,
+      insetFactor: _kInsetSelfie,
+      minCoverageRatio: _kMinCoverageSelfie,
+    );
   }
 
   bool _isTaskSatisfied(Face face, LivenessTask task) {

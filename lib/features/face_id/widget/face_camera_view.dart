@@ -26,6 +26,7 @@ class FaceCameraViewState extends State<FaceCameraView> {
   final _faceDetector = FaceDetector(
     options: FaceDetectorOptions(
       enableClassification: true,
+      enableLandmarks: true,   // required for landmark-anchored oval containment
       enableTracking: true,
       performanceMode: FaceDetectorMode.accurate,
       minFaceSize: 0.15,

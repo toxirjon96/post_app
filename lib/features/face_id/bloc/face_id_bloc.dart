@@ -67,7 +67,7 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     // ── All tasks done: gate "Take Selfie" behind quality + hysteresis ───────
     if (currentState is FaceIdAllTasksDone) {
       final faceGood = event.face != null &&
-          _isFaceProperlyPositioned(event.face!, event.imageSize);
+          _isFaceProperlyPositioned(event.face!, event.imageSize, event.imageRotationDegrees);
 
       if (faceGood) {
         _selfieGoodFrames++;
@@ -131,8 +131,8 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
   }
 
   /// Returns true only when the face is large enough, fully inside the frame,
-  /// and roughly forward-facing — i.e. the user's face properly fills the oval.
-  bool _isFaceProperlyPositioned(Face face, Size imageSize) {
+  /// roughly forward-facing, AND centred inside the on-screen guide oval.
+  bool _isFaceProperlyPositioned(Face face, Size imageSize, int rotationDegrees) {
     final box = face.boundingBox;
 
     // ── Face must be fully inside the camera frame ────────────────────────
@@ -159,12 +159,69 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     final pitch = (face.headEulerAngleX ?? 0).abs();
     if (yaw > 20 || pitch > 20) return false;
 
+    // ── Face must be inside the guide oval ────────────────────────────────
+    // Use the standard ellipse equation (dx/a)² + (dy/b)² ≤ 1 for a proper
+    // oval test — rectangular abs() checks incorrectly pass faces sitting in
+    // the rectangle's corners but outside the ellipse.
+    //
+    // Two tiers:
+    //   • Face CENTRE must be strictly inside the oval (t = 1.0).
+    //   • All four bounding-box CORNERS must be within a 1.12× enlarged oval.
+    //     ML Kit's bounding box includes a small margin beyond the face
+    //     geometry, so a tight oval would reject valid centred positions.
+    if (imageSize != Size.zero) {
+      final isPortrait = rotationDegrees == 90 || rotationDegrees == 270;
+      final ovalCx    = isPortrait ? 0.50 : 0.38;
+      final ovalCy    = isPortrait ? 0.37 : 0.50;
+      final ovalHalfW = isPortrait ? 0.36 : 0.16;
+      final ovalHalfH = isPortrait ? 0.23 : 0.45;
+
+      // Maps a camera-pixel (px, py) to screen-normalised [0..1] space using
+      // the same rotation logic as _isFaceCentered.
+      (double, double) toScreen(double px, double py) {
+        final cw = imageSize.width;
+        final ch = imageSize.height;
+        return switch (rotationDegrees) {
+          90  => ((ch - py) / ch, px / cw),
+          270 => (py / ch,        (cw - px) / cw),
+          180 => (1.0 - px / cw,  1.0 - py / ch),
+          _   => (px / cw,        py / ch),
+        };
+      }
+
+      // Centre check (strict oval).
+      final faceCx = box.left + box.width  / 2;
+      final faceCy = box.top  + box.height / 2;
+      final (sx, sy) = toScreen(faceCx, faceCy);
+      final ddx = (sx - ovalCx) / ovalHalfW;
+      final ddy = (sy - ovalCy) / ovalHalfH;
+      if (ddx * ddx + ddy * ddy > 1.0) return false;
+
+      // Corner check (1.12× enlarged oval).
+      const t = 1.12;
+      for (final (px, py) in [
+        (box.left,  box.top),
+        (box.right, box.top),
+        (box.left,  box.bottom),
+        (box.right, box.bottom),
+      ]) {
+        final (bsx, bsy) = toScreen(px, py);
+        final dx = (bsx - ovalCx) / (ovalHalfW * t);
+        final dy = (bsy - ovalCy) / (ovalHalfH * t);
+        if (dx * dx + dy * dy > 1.0) return false;
+      }
+    }
+
     return true;
   }
 
   /// Returns true when the face centre falls inside the on-screen oval and the
   /// face is adequately sized.  Head angle is NOT checked so that turn tasks
   /// (turnLeft / turnRight) are still gated by centering.
+  ///
+  /// Containment uses the standard ellipse equation (dx/a)² + (dy/b)² ≤ 1
+  /// so that faces at the corners of the bounding rectangle — which are outside
+  /// the actual ellipse — are correctly rejected.
   ///
   /// [rotationDegrees] is the clockwise rotation used to map the raw camera
   /// frame to the current display orientation (0 / 90 / 180 / 270).
@@ -223,8 +280,9 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     final ovalHalfW = isPortrait ? 0.36 : 0.16; // 72 %/2 or 32 %/2
     final ovalHalfH = isPortrait ? 0.23 : 0.45; // 46 %/2 or 90 %/2
 
-    return (screenX - ovalCx).abs() <= ovalHalfW &&
-           (screenY - ovalCy).abs() <= ovalHalfH;
+    final dx = (screenX - ovalCx) / ovalHalfW;
+    final dy = (screenY - ovalCy) / ovalHalfH;
+    return dx * dx + dy * dy <= 1.0;
   }
 
   bool _isTaskSatisfied(Face face, LivenessTask task) {

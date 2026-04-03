@@ -18,6 +18,7 @@ final class FaceIdFaceUpdated extends FaceIdEvent {
     this.face,
     this.imageSize = Size.zero,
     this.imageRotationDegrees = 0,
+    this.screenSize = Size.zero,
   }) : super._();
   final Face? face;
   /// Native camera image dimensions — used for face-position quality checks.
@@ -25,6 +26,9 @@ final class FaceIdFaceUpdated extends FaceIdEvent {
   /// Clockwise rotation (0 / 90 / 180 / 270) applied to map the camera frame
   /// to the current display orientation.  Portrait = 90 or 270; Landscape = 0 or 180.
   final int imageRotationDegrees;
+  /// Logical screen size — needed to apply the BoxFit.cover transform when
+  /// mapping camera-pixel coordinates to screen-normalised space.
+  final Size screenSize;
 }
 
 final class FaceIdSelfieCapture extends FaceIdEvent {

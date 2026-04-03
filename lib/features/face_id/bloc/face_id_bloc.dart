@@ -22,17 +22,28 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
   late List<LivenessTask> _tasks;
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  Oval geometry — must mirror liveness_overlay.dart exactly.
-  //  Values are in screen-normalised [0..1] space (cx/cy = centre, hw/hh = half-axes).
+  //  Oval geometry — mirrors liveness_overlay.dart exactly.
+  //  All values are in SCREEN-normalised [0..1] space (cx/cy = centre,
+  //  hw/hh = half-axes as fractions of screen width / height respectively).
+  //
+  //  These match the painter fractions directly, e.g. portrait phone
+  //  ovalWidthFraction=0.72 → hw = 0.36.
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Portrait  (rotationDegrees == 90 or 270)
+  // Portrait — phone  (ovalW=0.72·sW, ovalH=0.46·sH)
   static const _kPOvalCx = 0.50; static const _kPOvalCy = 0.37;
   static const _kPOvalHw = 0.36; static const _kPOvalHh = 0.23;
 
-  // Landscape (rotationDegrees == 0 or 180)
+  // Portrait — tablet  (ovalW=0.55·sW, ovalH=0.44·sH  — narrower to stay face-shaped)
+  static const _kPTabletOvalHw = 0.275; static const _kPTabletOvalHh = 0.22;
+
+  // Landscape — phone  (ovalW=0.32·sW, ovalH=0.90·sH)
   static const _kLOvalCx = 0.38; static const _kLOvalCy = 0.50;
   static const _kLOvalHw = 0.16; static const _kLOvalHh = 0.45;
+
+  // Landscape — tablet  (ovalW=0.42·sW, ovalH=0.86·sH; centre shifted for wider camera area)
+  static const _kLTabletOvalCx = 0.41;
+  static const _kLTabletOvalHw = 0.21; static const _kLTabletOvalHh = 0.43;
 
   // ── Face ellipse estimation ───────────────────────────────────────────────
   //
@@ -135,7 +146,8 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     // ── All tasks done: gate "Take Selfie" behind quality + hysteresis ───────
     if (currentState is FaceIdAllTasksDone) {
       final faceGood = event.face != null &&
-          _isFaceProperlyPositioned(event.face!, event.imageSize, event.imageRotationDegrees);
+          _isFaceProperlyPositioned(
+              event.face!, event.imageSize, event.imageRotationDegrees, event.screenSize);
 
       if (faceGood) {
         _selfieGoodFrames++;
@@ -169,7 +181,8 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     // A face is only considered "detected" (ready for task checks) when it is
     // centred inside the on-screen oval.  Faces detected anywhere in the frame
     // are ignored until the user moves into position.
-    final centered = _isFaceCentered(face, event.imageSize, event.imageRotationDegrees);
+    final centered = _isFaceCentered(
+        face, event.imageSize, event.imageRotationDegrees, event.screenSize);
     if (currentState.faceDetected != centered) {
       _consecutiveFrames = 0;
       emit(currentState.copyWith(faceDetected: centered));
@@ -202,23 +215,52 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
   //  Face-in-oval containment — core algorithm
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Converts a raw camera-image pixel (px, py) to a screen-normalised point
-  /// in [0..1] × [0..1] space, compensating for the clockwise rotation applied
-  /// to map the camera frame to the display orientation.
+  /// Converts a raw camera-image pixel (px, py) to a TRUE screen-normalised
+  /// point in [0..1] × [0..1] space.
   ///
-  /// Rotation conventions (CW degrees):
-  ///   0°  → camera image already aligned with display (landscape sensors).
-  ///   90° → 90° CW — most rear cameras in portrait.
-  ///  180° → 180° CW — upside-down portrait.
-  ///  270° → 270° CW (= 90° CCW) — most front cameras in portrait.
-  (double, double) _toScreenNorm(double px, double py, Size img, int rot) {
+  /// Two-step transform:
+  ///  1. Rotate the image pixel into display-image space using [rot] (CW degrees):
+  ///       0°  → identity (landscape sensor already aligned with display)
+  ///      90°  → 90° CW (rear camera portrait)
+  ///     180°  → 180° rotation
+  ///     270°  → 270° CW / 90° CCW with horizontal mirror for front cameras
+  ///  2. Apply the same BoxFit.cover scale + centre-crop that the camera preview
+  ///     widget uses, so the returned value lands in screen pixels / screen size.
+  ///
+  /// This is the only correct way to compare ML Kit coordinates (which live in
+  /// the raw camera-image pixel space) against the visual oval (which is drawn
+  /// in screen space). Without step 2 the normalised half-width would differ
+  /// from the drawn oval whenever the aspect ratios of the camera image and
+  /// screen differ (which they always do with BoxFit.cover).
+  (double, double) _toScreenNorm(
+      double px, double py, Size img, int rot, Size screen) {
     final w = img.width, h = img.height;
-    return switch (rot) {
-      90  => ((h - py) / h, px / w),
-      270 => (py / h, (w - px) / w),
-      180 => (1.0 - px / w, 1.0 - py / h),
-      _   => (px / w, py / h), // 0°
+
+    // ── Step 1: camera pixel → display pixel ─────────────────────────────
+    // Display image size after rotation
+    final dW = (rot == 90 || rot == 270) ? h : w;
+    final dH = (rot == 90 || rot == 270) ? w : h;
+
+    // Pixel position inside the (possibly rotated) display image.
+    // The 270° case mirrors the X axis, aligning with the front-camera
+    // mirror that the camera preview applies for selfie mode.
+    final (dpx, dpy) = switch (rot) {
+      90  => (h - py, px),
+      270 => (py,     w - px),
+      180 => (w - px, h - py),
+      _   => (px,     py),
     };
+
+    // ── Step 2: BoxFit.cover → screen-normalised ──────────────────────────
+    // Scale so the larger axis fills the screen; the smaller axis overflows
+    // and is cropped symmetrically (same as FittedBox with BoxFit.cover).
+    final scale = max(screen.width / dW, screen.height / dH);
+    final xOff  = (dW * scale - screen.width)  / 2; // left-crop in pixels
+    final yOff  = (dH * scale - screen.height) / 2; // top-crop in pixels
+
+    final sx = ((dpx * scale - xOff) / screen.width ).clamp(0.0, 1.0);
+    final sy = ((dpy * scale - yOff) / screen.height).clamp(0.0, 1.0);
+    return (sx, sy);
   }
 
   /// Unified face-in-oval containment check.
@@ -247,14 +289,17 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
   bool _isFaceInOval(
     Face face,
     Size imageSize,
-    int rotationDegrees, {
+    int rotationDegrees,
+    Size screenSize, {
     required double insetFactor,
     required double minCoverageRatio,
   }) {
     final box = face.boundingBox;
 
     // ── Tier 1: frame sanity ──────────────────────────────────────────────
-    if (imageSize == Size.zero) return box.width >= 90;
+    if (imageSize == Size.zero || screenSize == Size.zero) {
+      return box.width >= 90;
+    }
 
     if (box.left < 0 || box.top < 0 ||
         box.right > imageSize.width || box.bottom > imageSize.height) {
@@ -263,25 +308,35 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     final minDim = min(imageSize.width, imageSize.height);
     if (box.width < minDim * 0.15) return false;
 
-    // ── Oval parameters ───────────────────────────────────────────────────
-    final isPortrait = rotationDegrees == 90 || rotationDegrees == 270;
-    final oCx = isPortrait ? _kPOvalCx : _kLOvalCx;
-    final oCy = isPortrait ? _kPOvalCy : _kLOvalCy;
-    final oHw = isPortrait ? _kPOvalHw : _kLOvalHw;
-    final oHh = isPortrait ? _kPOvalHh : _kLOvalHh;
-    final iHw = oHw * insetFactor; // inset test half-width
-    final iHh = oHh * insetFactor; // inset test half-height
+    // ── Oval parameters (screen-normalised space) ─────────────────────────
+    // Use the physical screen orientation (not the rotation value, which can
+    // differ across devices / tablet sensors).
+    final isPortrait = screenSize.width < screenSize.height;
+    final isTablet   = screenSize.shortestSide >= 600;
 
+    final double oCx, oCy, oHw, oHh;
+    if (isPortrait) {
+      oCx = _kPOvalCx; oCy = _kPOvalCy;
+      oHw = isTablet ? _kPTabletOvalHw : _kPOvalHw;
+      oHh = isTablet ? _kPTabletOvalHh : _kPOvalHh;
+    } else {
+      oCx = isTablet ? _kLTabletOvalCx : _kLOvalCx;
+      oCy = _kLOvalCy;
+      oHw = isTablet ? _kLTabletOvalHw : _kLOvalHw;
+      oHh = isTablet ? _kLTabletOvalHh : _kLOvalHh;
+    }
+    final iHw = oHw * insetFactor;
+    final iHh = oHh * insetFactor;
+
+    // Convenience wrapper: camera pixel → screen-norm (accounts for rotation
+    // AND the BoxFit.cover crop the preview widget applies).
     (double, double) ts(double px, double py) =>
-        _toScreenNorm(px, py, imageSize, rotationDegrees);
+        _toScreenNorm(px, py, imageSize, rotationDegrees, screenSize);
 
     // ── Face features ellipse ─────────────────────────────────────────────
-    //
-    // Size: always from the bounding box.
-    //   Transform the two opposing bbox corners to screen-normalised space and
-    //   take the axis-aligned extent.  Each axis is normalised independently
-    //   (X → width-fraction, Y → height-fraction), so no aspect-ratio
-    //   correction is required.
+    // Transform opposing bbox corners to screen-normalised space; the
+    // axis-aligned extents give us face half-axes already in screen-norm
+    // units (X = fraction of screenW, Y = fraction of screenH).
     final (x0, y0) = ts(box.left,  box.top);
     final (x1, y1) = ts(box.right, box.bottom);
     final bMinX = min(x0, x1), bMaxX = max(x0, x1);
@@ -290,10 +345,7 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
     final faceHw = (bMaxX - bMinX) / 2 * _kBboxEllipseWidthRatio;
     final faceHh = (bMaxY - bMinY) / 2 * _kBboxEllipseHeightRatio;
 
-    // Centre: eye midpoint when landmarks are available (more accurate than
-    // bbox centre, especially when the head is slightly rolled), otherwise
-    // fall back to the bbox centre.  No vertical offset is applied — the
-    // eye midpoint is a stable proxy for the face centre in this context.
+    // Centre: eye midpoint when available; bbox centre otherwise.
     double faceCx, faceCy;
     final leftEyeLm  = face.landmarks[FaceLandmarkType.leftEye];
     final rightEyeLm = face.landmarks[FaceLandmarkType.rightEye];
@@ -340,23 +392,19 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
   ///
   /// Delegates to [_isFaceInOval] with the liveness inset (0.92 = 8% margin)
   /// and a minimum coverage ratio of 20 %.
-  bool _isFaceCentered(Face face, Size imageSize, int rotationDegrees) =>
+  bool _isFaceCentered(
+          Face face, Size imageSize, int rotationDegrees, Size screenSize) =>
       _isFaceInOval(
         face,
         imageSize,
         rotationDegrees,
+        screenSize,
         insetFactor: _kInsetLiveness,
         minCoverageRatio: _kMinCoverageLiveness,
       );
 
-  /// Returns `true` when the face is large enough, fully inside the guide oval,
-  /// AND the head is approximately forward-facing — all required before the
-  /// "Take Selfie" button activates.
-  ///
-  /// Uses a tighter oval inset (0.87 = 13 %) and 30 % minimum coverage to
-  /// ensure the captured image contains a well-framed, undistorted face.
-  bool _isFaceProperlyPositioned(Face face, Size imageSize, int rotationDegrees) {
-    // Head must be roughly forward-facing for a quality selfie.
+  bool _isFaceProperlyPositioned(
+      Face face, Size imageSize, int rotationDegrees, Size screenSize) {
     final yaw   = (face.headEulerAngleY ?? 0).abs();
     final pitch = (face.headEulerAngleX ?? 0).abs();
     if (yaw > _kSelfieMaxYaw || pitch > _kSelfieMaxPitch) return false;
@@ -365,6 +413,7 @@ class FaceIdBloc extends Bloc<FaceIdEvent, FaceIdState> {
       face,
       imageSize,
       rotationDegrees,
+      screenSize,
       insetFactor: _kInsetSelfie,
       minCoverageRatio: _kMinCoverageSelfie,
     );

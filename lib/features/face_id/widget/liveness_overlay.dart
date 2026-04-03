@@ -65,25 +65,27 @@ class _LivenessOverlayState extends State<LivenessOverlay>
 
   // ── Oval layout constants ──────────────────────────────────────────
   //
-  // Portrait: oval is 72% of screen width and 46% of screen height.
-  //   Example 390×844: 281×389 px → ratio 0.72 (taller than wide ✓)
+  // Portrait phone:  72% × 46% of screen → 281×389 px on 390×844 → ratio 0.72 ✓
+  // Portrait tablet: 55% × 44% of screen → avoids the nearly-circular 72% oval
+  //   that appears on wide tablets (e.g. 800px wide: 576×589 ≈ circle).
   //
-  // Landscape: the screen is now wide and short. If we keep the same fractions
-  //   the oval becomes nearly square or wider-than-tall (e.g. 844×390 at 0.42×0.78
-  //   = 354×304 px → slightly wider → face looks oblong).
-  //   Fix: use narrower width and taller height fractions so the oval stays
-  //   portrait-shaped even in landscape.
-  //   Example 844×390: 0.32×0.90 = 270×351 px → ratio 0.77 (taller ✓)
-  static const double _ovalWidthFraction                  = 0.72;
-  static const double _ovalWidthFractionLandscape          = 0.32;
-  static const double _ovalWidthFractionLandscapeTablet    = 0.42;
-  static const double _ovalHeightFractionPortrait          = 0.46;
-  static const double _ovalHeightFractionLandscape         = 0.90;
-  static const double _ovalHeightFractionLandscapeTablet   = 0.86;
-  // Center X offset in landscape (fraction of screen width) — shifted left of
-  // the side panel to keep the oval centred in the visible camera area.
-  static const double _ovalCenterXLandscape = 0.38;
-  static const double _ovalCenterYPortrait  = 0.37;
+  // Landscape phone:   32% × 90% of screen → 270×351 px on 844×390 → ratio 0.77 ✓
+  // Landscape tablet:  42% × 86% — wider camera area, but the oval center X
+  //   shifts to 41% (vs 38% for phones) to stay centred in the camera region
+  //   after accounting for the 220px side panel on a ~1280px tablet screen.
+  static const double _ovalWidthFraction                  = 0.72;  // portrait phone
+  static const double _ovalWidthFractionPortraitTablet    = 0.55;  // portrait tablet
+  static const double _ovalWidthFractionLandscape         = 0.32;  // landscape phone
+  static const double _ovalWidthFractionLandscapeTablet   = 0.42;  // landscape tablet
+  static const double _ovalHeightFractionPortrait         = 0.46;  // portrait phone
+  static const double _ovalHeightFractionPortraitTablet   = 0.44;  // portrait tablet
+  static const double _ovalHeightFractionLandscape        = 0.90;  // landscape phone
+  static const double _ovalHeightFractionLandscapeTablet  = 0.86;  // landscape tablet
+  // Center X in landscape — shifted left so the oval sits in the camera area,
+  // not behind the right-side task panel.
+  static const double _ovalCenterXLandscape       = 0.38; // phone
+  static const double _ovalCenterXLandscapeTablet = 0.41; // tablet (wider camera area)
+  static const double _ovalCenterYPortrait        = 0.37;
 
   @override
   void initState() {
@@ -1590,29 +1592,34 @@ class _OvalOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // ── Compute oval geometry ────────────────────────────────────────
-    // In landscape: shift oval left so it sits in the camera-preview area
-    // (the right side is occupied by the task/selfie panel).
+    // Center X: landscape ovals shift left so they sit in the camera-preview
+    // area (right side is occupied by the task/selfie panel).
+    // Tablets need a slightly different shift because the camera area is wider.
     final centerX = isLandscape
-        ? size.width  * _LivenessOverlayState._ovalCenterXLandscape
-        : size.width  * 0.50;
+        ? size.width * (isTablet
+            ? _LivenessOverlayState._ovalCenterXLandscapeTablet
+            : _LivenessOverlayState._ovalCenterXLandscape)
+        : size.width * 0.50;
     final centerY = isLandscape
         ? size.height * 0.50
         : size.height * _LivenessOverlayState._ovalCenterYPortrait;
 
-    // Landscape oval: narrow width + tall height → portrait-shaped oval so the
-    // face is never distorted regardless of device orientation.
-    // Tablets in landscape use wider/shorter fractions so the oval fills the
-    // larger camera-preview area (e.g. Tab S6 / S10 landscape).
+    // Portrait tablets get a narrower oval (55% vs 72%) to avoid a nearly-
+    // circular oval on wide tablet screens.  Landscape variants are unchanged.
     final ovalW = isLandscape
         ? size.width * (isTablet
             ? _LivenessOverlayState._ovalWidthFractionLandscapeTablet
             : _LivenessOverlayState._ovalWidthFractionLandscape)
-        : size.width * _LivenessOverlayState._ovalWidthFraction;
+        : size.width * (isTablet
+            ? _LivenessOverlayState._ovalWidthFractionPortraitTablet
+            : _LivenessOverlayState._ovalWidthFraction);
     final ovalH = isLandscape
         ? size.height * (isTablet
             ? _LivenessOverlayState._ovalHeightFractionLandscapeTablet
             : _LivenessOverlayState._ovalHeightFractionLandscape)
-        : size.height * _LivenessOverlayState._ovalHeightFractionPortrait;
+        : size.height * (isTablet
+            ? _LivenessOverlayState._ovalHeightFractionPortraitTablet
+            : _LivenessOverlayState._ovalHeightFractionPortrait);
 
     final center = Offset(centerX, centerY);
     final ovalRect =

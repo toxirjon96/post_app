@@ -105,6 +105,7 @@ class FaceCameraViewState extends State<FaceCameraView> {
               face: faces.isNotEmpty ? faces.first : null,
               imageSize: Size(image.width.toDouble(), image.height.toDouble()),
               imageRotationDegrees: _lastRotationDegrees,
+              screenSize: MediaQuery.sizeOf(context),
             ),
           );
     } finally {

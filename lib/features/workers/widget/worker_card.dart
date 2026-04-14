@@ -311,7 +311,7 @@ class _Avatar extends StatelessWidget {
           if (worker.isOnline)
             AnimatedBuilder(
               animation: pulseCtrl,
-              builder: (_, __) => Container(
+              builder: (_, _) => Container(
                 width:  outerSz,
                 height: outerSz,
                 decoration: BoxDecoration(
@@ -1267,7 +1267,7 @@ class _InfoMenuButton extends StatelessWidget {
     bool multiLine = false,
   }) {
     final labelColor = isDark ? Colors.white38 : Colors.grey.shade500;
-    final valueColor = isDark ? Colors.white87 : const Color(0xFF0D1B3E);
+    final valueColor = isDark ? Colors.white70 : const Color(0xFF0D1B3E);
 
     return PopupMenuItem<String>(
       value:   value,
@@ -1328,7 +1328,7 @@ class _InfoMenuButton extends StatelessWidget {
   // ── Work hours item (two times with arrow) ────────────────────────────────
   PopupMenuItem<String> _menuHoursItem(BuildContext context, bool isDark) {
     final labelColor = isDark ? Colors.white38 : Colors.grey.shade500;
-    final valueColor = isDark ? Colors.white87 : const Color(0xFF0D1B3E);
+    final valueColor = isDark ? Colors.white70 : const Color(0xFF0D1B3E);
     final sepColor   = isDark ? Colors.white24 : Colors.grey.shade400;
 
     return PopupMenuItem<String>(

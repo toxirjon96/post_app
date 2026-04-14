@@ -492,62 +492,27 @@ class _WorkerListState extends State<_WorkerList> {
     }
   }
 
-  int get _crossAxisCount {
-    if (!widget.isTablet) return 1;
-    return widget.isLandscape ? 3 : 2;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final cols = _crossAxisCount;
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
       color: const Color(0xFF00E5CC),
-      child: cols == 1
-          ? ListView.builder(
-              key: _listKey,
-              padding: const EdgeInsets.only(top: 8, bottom: 24),
-              physics: const AlwaysScrollableScrollPhysics(),
-              itemCount: widget.workers.length,
-              itemBuilder: (_, i) => _SlideFadeIn(
-                index: i,
-                child: WorkerCard(
-                  worker: widget.workers[i],
-                  onCall: () {},
-                  onMessage: () {},
-                  onProfile: () {},
-                ),
-              ),
-            )
-          : GridView.builder(
-              key: _listKey,
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
-              physics: const AlwaysScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: cols,
-                crossAxisSpacing: 0,
-                mainAxisSpacing: 0,
-                childAspectRatio:
-                    _cardAspectRatio(context, cols),
-              ),
-              itemCount: widget.workers.length,
-              itemBuilder: (_, i) => _SlideFadeIn(
-                index: i,
-                child: WorkerCard(
-                  worker: widget.workers[i],
-                  onCall: () {},
-                  onMessage: () {},
-                  onProfile: () {},
-                ),
-              ),
-            ),
+      child: ListView.builder(
+        key: _listKey,
+        padding: const EdgeInsets.only(top: 8, bottom: 24),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: widget.workers.length,
+        itemBuilder: (_, i) => _SlideFadeIn(
+          index: i,
+          child: WorkerCard(
+            worker: widget.workers[i],
+            onCall: () {},
+            onMessage: () {},
+            onProfile: () {},
+          ),
+        ),
+      ),
     );
-  }
-
-  double _cardAspectRatio(BuildContext context, int cols) {
-    final screenW = MediaQuery.sizeOf(context).width;
-    final cardW = screenW / cols;
-    return cardW / 262;
   }
 }
 

@@ -1,8 +1,12 @@
+import 'dart:io';
+
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../common/widget/app_dropdown.dart';
 import '../../../common/widget/scaffold_key_scope.dart';
+import 'media_picker_sheet.dart';
 
 // ── Demo data ────────────────────────────────────────────────────────────────
 
@@ -176,6 +180,14 @@ class _SearchCarPageState extends State<SearchCarPage> {
   // Multi-select states
   List<String> _features = [];
   List<String> _selectedColors = [];
+
+  // Photo attachment
+  XFile? _selectedPhoto;
+
+  Future<void> _openPicker() async {
+    final result = await showMediaPickerSheet(context);
+    if (result != null) setState(() => _selectedPhoto = result);
+  }
 
   void _onSearch() {
     HapticFeedback.mediumImpact();
@@ -621,6 +633,18 @@ class _SearchCarPageState extends State<SearchCarPage> {
             onChanged: (v) => setState(() => _selectedColors = v),
           ),
 
+          const SizedBox(height: 18),
+
+          // ── Vehicle photo ─────────────────────────────────────────────
+          _FormSectionTitle(label: 'Vehicle Photo', isDark: isDark),
+          const SizedBox(height: 12),
+          _PhotoAttachZone(
+            isDark:        isDark,
+            selectedPhoto: _selectedPhoto,
+            onTap:         _openPicker,
+            onRemove:      () => setState(() => _selectedPhoto = null),
+          ),
+
           const SizedBox(height: 22),
 
           // Search button
@@ -710,6 +734,360 @@ class _FormSectionTitle extends StatelessWidget {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  PHOTO ATTACH ZONE
+//
+//  Empty state  → dashed-style amber bordered zone with camera + gallery icons.
+//  Filled state → full-bleed thumbnail with gradient overlay, "Change" chip
+//                 on top-left and "✕ Remove" chip on top-right.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _PhotoAttachZone extends StatelessWidget {
+  const _PhotoAttachZone({
+    required this.isDark,
+    required this.selectedPhoto,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  final bool isDark;
+  final XFile? selectedPhoto;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return selectedPhoto == null
+        ? _EmptyZone(isDark: isDark, onTap: onTap)
+        : _FilledZone(
+            isDark: isDark,
+            photo:  selectedPhoto!,
+            onTap:  onTap,
+            onRemove: onRemove,
+          );
+  }
+}
+
+// ── Empty drop-zone ───────────────────────────────────────────────────────────
+
+class _EmptyZone extends StatefulWidget {
+  const _EmptyZone({required this.isDark, required this.onTap});
+  final bool isDark;
+  final VoidCallback onTap;
+  @override
+  State<_EmptyZone> createState() => _EmptyZoneState();
+}
+
+class _EmptyZoneState extends State<_EmptyZone>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark  = widget.isDark;
+    final zoneBg  = isDark
+        ? _kPhotoAccent.withValues(alpha: 0.05)
+        : _kPhotoAccent.withValues(alpha: 0.04);
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _pulse,
+        builder: (_, _) => CustomPaint(
+          painter: _DashedBorderPainter(
+            color:  _kPhotoAccent.withValues(
+                alpha: 0.28 + 0.18 * _pulse.value),
+            radius: 14,
+          ),
+          child: Container(
+            height:  88,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            decoration: BoxDecoration(
+              color:        zoneBg,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Camera icon badge
+                Container(
+                  width:  40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color:        _kPhotoAccent.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(12),
+                    border:       Border.all(
+                      color: _kPhotoAccent.withValues(alpha: 0.28),
+                      width: 1,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.add_photo_alternate_outlined,
+                    size:  20,
+                    color: _kPhotoAccent,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Column(
+                  mainAxisSize:       MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Attach Vehicle Photo',
+                      style: TextStyle(
+                        fontSize:   13.5,
+                        fontWeight: FontWeight.w700,
+                        color:      _kPhotoAccent,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.camera_alt_outlined,
+                            size: 12,
+                            color: isDark
+                                ? Colors.white38
+                                : Colors.grey.shade500),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Camera',
+                          style: TextStyle(
+                            fontSize:   11,
+                            color:      isDark
+                                ? Colors.white38
+                                : Colors.grey.shade500,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Icon(Icons.photo_library_outlined,
+                            size: 12,
+                            color: isDark
+                                ? Colors.white38
+                                : Colors.grey.shade500),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Gallery',
+                          style: TextStyle(
+                            fontSize:   11,
+                            color:      isDark
+                                ? Colors.white38
+                                : Colors.grey.shade500,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Filled state (thumbnail) ──────────────────────────────────────────────────
+
+class _FilledZone extends StatelessWidget {
+  const _FilledZone({
+    required this.isDark,
+    required this.photo,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  final bool isDark;
+  final XFile photo;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: SizedBox(
+        height: 160,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Thumbnail
+            Image.file(
+              File(photo.path),
+              fit: BoxFit.cover,
+            ),
+
+            // Bottom gradient + label
+            Positioned(
+              left: 0, right: 0, bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(12, 24, 12, 10),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end:   Alignment.topCenter,
+                    colors: [Color(0xCC000000), Colors.transparent],
+                  ),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.check_circle_rounded,
+                        size: 14, color: Color(0xFF00D68F)),
+                    SizedBox(width: 6),
+                    Text(
+                      'Vehicle Photo attached',
+                      style: TextStyle(
+                        fontSize:   12,
+                        fontWeight: FontWeight.w600,
+                        color:      Colors.white,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Top action chips
+            Positioned(
+              top: 8, left: 8, right: 8,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Change
+                  GestureDetector(
+                    onTap: onTap,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color:        Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(20),
+                        border:       Border.all(
+                          color: Colors.white.withValues(alpha: 0.30),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.edit_outlined,
+                              size: 11, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            'Change',
+                            style: TextStyle(
+                              fontSize:   11,
+                              fontWeight: FontWeight.w700,
+                              color:      Colors.white,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Remove
+                  GestureDetector(
+                    onTap: onRemove,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color:        Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(20),
+                        border:       Border.all(
+                          color: Colors.white.withValues(alpha: 0.30),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.close_rounded,
+                              size: 11, color: Color(0xFFFF6B6B)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Remove',
+                            style: TextStyle(
+                              fontSize:   11,
+                              fontWeight: FontWeight.w700,
+                              color:      Color(0xFFFF6B6B),
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Dashed border painter ─────────────────────────────────────────────────────
+
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter({required this.color, required this.radius});
+  final Color  color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const dash = 6.0;
+    const gap  = 4.0;
+    final paint = Paint()
+      ..color       = color
+      ..strokeWidth = 1.5
+      ..style       = PaintingStyle.stroke;
+
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0.75, 0.75, size.width - 1.5, size.height - 1.5),
+      Radius.circular(radius),
+    );
+    final path = Path()..addRRect(rrect);
+
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final end = (distance + dash).clamp(0, metric.length);
+        canvas.drawPath(metric.extractPath(distance, end.toDouble()), paint);
+        distance += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter old) => old.color != color;
+}
+
+// ── Shared accent token for photo section ─────────────────────────────────────
+const _kPhotoAccent = Color(0xFFF59E0B); // amber
 
 class _SearchButton extends StatefulWidget {
   const _SearchButton({required this.onTap});

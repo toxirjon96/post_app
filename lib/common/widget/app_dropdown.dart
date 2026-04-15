@@ -123,6 +123,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeOut,
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: bgColor,
                     borderRadius: BorderRadius.circular(14),
@@ -374,7 +375,7 @@ class _AppDropdownState<T> extends State<AppDropdown<T>> {
                           bottom: 0,
                           child: IgnorePointer(
                             child: Container(
-                              width: 4,
+                              width: 6,
                               decoration: BoxDecoration(
                                 color: accent,
                                 borderRadius: const BorderRadius.only(

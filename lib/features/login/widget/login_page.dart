@@ -193,7 +193,7 @@ class _LoginViewState extends State<_LoginView> with TickerProviderStateMixin {
       child: BlocListener<LoginBloc, LoginState>(
         listener: (context, state) {
           if (state is LoginSuccess) {
-            context.go('/face-id');
+            context.go('/home/posts');
           } else if (state is LoginFailure) {
             ScaffoldMessenger.of(context)
                 .showSnackBar(_buildErrorSnack(context, state.message));
